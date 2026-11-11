@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PulseFit - Gym Workout Tracker</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for progress visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Font: Inter / Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            appBg: '#edf2f7',
+            cardBg: '#ffffff',
+            navyHero: '#081c4b',
+            accentOrange: '#ff8a3d',
+            accentOrangeEnd: '#ff6200',
+            pastelMint: '#dcfce7',
+            pastelBlue: '#e0f2fe',
+            pastelPurple: '#f3e8ff',
+            pastelPink: '#ffe4e6',
+            pastelAmber: '#fef3c7',
+            tealTag: '#0d9488'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #f1f5f9;
+      background-image: radial-gradient(at 0% 0%, rgba(224, 242, 254, 0.6) 0, transparent 50%),
+                        radial-gradient(at 100% 100%, rgba(254, 243, 199, 0.4) 0, transparent 50%);
+      background-attachment: fixed;
+    }
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    .hero-card-gradient {
+      background: radial-gradient(circle at 85% 15%, #1d4ed8 0%, #0c2563 50%, #06153d 100%);
+    }
+    .fab-gradient {
+      background: linear-gradient(135deg, #ff944d 0%, #fa5c1b 100%);
+      box-shadow: 0 8px 24px -2px rgba(250, 92, 27, 0.45);
+    }
+    .soft-shadow {
+      box-shadow: 0 10px 30px -5px rgba(15, 23, 42, 0.05), 0 4px 10px -2px rgba(15, 23, 42, 0.02);
+    }
+    .sheet-up {
+      animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col antialiased pb-28 sm:pb-24">
+
+  <!-- Notification Toast Container -->
+  <div id="toast-container" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none w-full max-w-sm px-4"></div>
+
+  <!-- Mobile-styled Top Header -->
+  <header class="w-full max-w-md mx-auto pt-4 px-5 pb-2 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <button class="w-10 h-10 rounded-2xl bg-white soft-shadow border border-slate-100 flex items-center justify-center text-slate-700 active:scale-95 transition-transform">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
+      <div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-xs font-semibold text-slate-400">Workout Plan</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+        </div>
+        <h1 class="text-base font-extrabold text-slate-900 tracking-tight">Daily Fitness</h1>
+      </div>
+    </div>
+
+    <!-- Date Pill Toggle -->
+    <div class="flex items-center gap-2">
+      <div class="relative bg-white soft-shadow border border-slate-100 rounded-full px-3 py-1.5 flex items-center gap-2 cursor-pointer hover:border-slate-300 transition-all">
+        <i data-lucide="calendar" class="w-4 h-4 text-teal-600"></i>
+        <input type="date" id="active-date-picker" class="bg-transparent text-xs font-bold text-slate-700 focus:outline-none cursor-pointer">
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Frame Container -->
+  <main class="w-full max-w-md mx-auto px-4 pt-2 space-y-4">
+
+    <!-- ============================================== -->
+    <!-- VIEW 1: DAILY WORKOUT (HOME)                   -->
+    <!-- ============================================== -->
+    <div id="view-home" class="space-y-4">
+      
+      <!-- Blue Curved Top Hero Card (Matches Image 1, 2, 4) -->
+      <div class="hero-card-gradient text-white rounded-3xl p-5 shadow-2xl shadow-blue-950/20 relative overflow-hidden">
+        <div class="absolute -right-12 -top-12 w-48 h-48 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-[11px] font-bold tracking-wider uppercase text-blue-200">Daily Lifted Volume</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button onclick="openModal('quick-entry-modal')" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md flex items-center justify-center text-white transition-colors">
+              <i data-lucide="zap" class="w-4 h-4 text-amber-300"></i>
+            </button>
+            <button onclick="openModal('quick-entry-modal')" class="w-8 h-8 rounded-xl bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white transition-colors">
+              <i data-lucide="plus" class="w-4 h-4 stroke-[3]"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Big Metric -->
+        <div class="flex items-baseline gap-1 my-1">
+          <span class="text-3xl font-extrabold tracking-tight" id="hero-volume-val">0</span>
+          <span class="text-sm font-semibold text-blue-200">kg</span>
+        </div>
+        <p id="hero-date-text" class="text-xs text-blue-200/80 mb-4">Today's Total Workload</p>
+
+        <!-- Stats 3-Column Pill Sub-Card -->
+        <div class="bg-white/10 backdrop-blur-md border border-white/10 rounded-2xl p-2.5 grid grid-cols-3 text-center divide-x divide-white/10">
+          <div>
+            <span id="hero-exercises-count" class="text-base font-bold text-white block">0</span>
+            <span class="text-[10px] uppercase font-bold text-blue-200 tracking-wider">EXERCISES</span>
+          </div>
+          <div>
+            <span id="hero-sets-count" class="text-base font-bold text-white block">0</span>
+            <span class="text-[10px] uppercase font-bold text-blue-200 tracking-wider">TOTAL SETS</span>
+          </div>
+          <div>
+            <span id="hero-completed-sets-count" class="text-base font-bold text-emerald-300 block">0</span>
+            <span class="text-[10px] uppercase font-bold text-blue-200 tracking-wider">FINISHED</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Muscle Category Quick Ring Bar (Matches Screenshot Category Carousel) -->
+      <div class="bg-white soft-shadow border border-slate-100 rounded-3xl p-4">
+        <div class="flex items-center justify-between mb-3 px-1">
+          <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">SPLIT BREAKDOWN</span>
+            <h3 class="text-sm font-bold text-slate-800">Muscle Groups</h3>
+          </div>
+          <button onclick="switchView('groups')" class="text-xs font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1">
+            Manage <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <div id="category-pills-row" class="flex gap-3 overflow-x-auto pb-1 no-scrollbar">
+          <!-- Dynamically populated category chips with round progress styling -->
+        </div>
+      </div>
+
+      <!-- Quick Exercise Log Section -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between px-1">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-bold text-slate-800">Today's Exercises</span>
+            <span id="badge-total-items" class="text-[11px] font-bold bg-teal-50 text-teal-700 border border-teal-200/60 px-2 py-0.5 rounded-full">0</span>
+          </div>
+          <button onclick="openModal('quick-entry-modal')" class="text-xs font-bold text-slate-600 hover:text-slate-900 bg-white soft-shadow border border-slate-100 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition-colors">
+            <i data-lucide="plus" class="w-3.5 h-3.5 text-teal-600"></i> Add Exercise
+          </button>
+        </div>
+
+        <!-- Exercise Item Cards List -->
+        <div id="session-exercises-list" class="space-y-3">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- VIEW 2: SPLITS & BODY PARTS MANAGEMENT        -->
+    <!-- ============================================== -->
+    <div id="view-groups" class="hidden space-y-4">
+      <div class="bg-white soft-shadow border border-slate-100 rounded-3xl p-5">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">CONFIGURATION</span>
+            <h2 class="text-base font-extrabold text-slate-900">Splits & Muscle Groups</h2>
+          </div>
+          <button onclick="openModal('add-group-modal')" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-3.5 py-2 rounded-2xl flex items-center gap-1.5 soft-shadow transition-colors">
+            <i data-lucide="folder-plus" class="w-4 h-4"></i> New Split
+          </button>
+        </div>
+        <p class="text-xs text-slate-500 mb-4">
+          Group targeted body parts (e.g., Chest, Delts) into custom daily splits (e.g., Upper Body, Push, Anterior).
+        </p>
+
+        <!-- Group Cards -->
+        <div id="groups-container" class="space-y-3">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- VIEW 3: ANALYTICS & HISTORY                    -->
+    <!-- ============================================== -->
+    <div id="view-history" class="hidden space-y-4">
+      <!-- Dark Styled Analytics Card (Matching Image 3: Dark Mode Analytics) -->
+      <div class="bg-[#0b1329] border border-slate-800 text-white rounded-3xl p-5 shadow-xl">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">VOLUME PERFORMANCE</span>
+            <h3 class="text-base font-extrabold text-white">Lift Progress</h3>
+          </div>
+          <span class="text-xs font-bold text-teal-400 bg-teal-950/80 border border-teal-800/60 px-2.5 py-1 rounded-full flex items-center gap-1">
+            <i data-lucide="trending-up" class="w-3 h-3"></i> Active
+          </span>
+        </div>
+        <div class="relative h-56 w-full">
+          <canvas id="volumeChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Donut Muscle Breakdown -->
+      <div class="bg-white soft-shadow border border-slate-100 rounded-3xl p-5">
+        <h3 class="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+          <i data-lucide="pie-chart" class="w-4 h-4 text-teal-600"></i> Body Parts Share
+        </h3>
+        <div class="relative h-48 w-full flex items-center justify-center">
+          <canvas id="partsDistributionChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Logged Sessions -->
+      <div class="bg-white soft-shadow border border-slate-100 rounded-3xl p-5">
+        <h3 class="text-sm font-bold text-slate-900 mb-2">Previous Logs</h3>
+        <p class="text-xs text-slate-400 mb-3">Tap on any recorded session to view or revise.</p>
+        <div id="history-log-list" class="space-y-2 max-h-80 overflow-y-auto pr-1">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ============================================== -->
+  <!-- BOTTOM APP NAVIGATION BAR (Matches screenshots) -->
+  <!-- ============================================== -->
+  <div class="fixed bottom-0 left-0 right-0 z-40 px-4 pb-3 pt-1 pointer-events-none">
+    <div class="max-w-md mx-auto bg-white/95 backdrop-blur-xl border border-slate-200/80 soft-shadow rounded-full px-6 py-2.5 flex items-center justify-between pointer-events-auto relative">
+      
+      <!-- Tab 1: Home / Daily -->
+      <button onclick="switchView('home')" id="nav-btn-home" class="flex flex-col items-center gap-1 transition-all group">
+        <div class="p-1.5 rounded-xl group-hover:bg-teal-50 text-teal-600 transition-colors">
+          <i data-lucide="home" class="w-5 h-5 stroke-[2.2]"></i>
+        </div>
+        <span class="text-[10px] font-bold text-teal-700">Daily</span>
+      </button>
+
+      <!-- Tab 2: Splits / Groups -->
+      <button onclick="switchView('groups')" id="nav-btn-groups" class="flex flex-col items-center gap-1 transition-all group">
+        <div class="p-1.5 rounded-xl group-hover:bg-slate-100 text-slate-400 transition-colors">
+          <i data-lucide="layout-grid" class="w-5 h-5 stroke-[2]"></i>
+        </div>
+        <span class="text-[10px] font-semibold text-slate-400">Splits</span>
+      </button>
+
+      <!-- Center Floating Orange '+' Button (Iconic FAB) -->
+      <div class="relative -top-5">
+        <button onclick="openModal('quick-entry-modal')" class="fab-gradient w-13 h-13 w-14 h-14 rounded-full flex items-center justify-center text-white active:scale-95 transition-transform">
+          <i data-lucide="plus" class="w-7 h-7 stroke-[2.6]"></i>
+        </button>
+      </div>
+
+      <!-- Tab 3: History / Analytics -->
+      <button onclick="switchView('history')" id="nav-btn-history" class="flex flex-col items-center gap-1 transition-all group">
+        <div class="p-1.5 rounded-xl group-hover:bg-slate-100 text-slate-400 transition-colors">
+          <i data-lucide="pie-chart" class="w-5 h-5 stroke-[2]"></i>
+        </div>
+        <span class="text-[10px] font-semibold text-slate-400">Analytics</span>
+      </button>
+
+      <!-- Tab 4: Quick Rest / Log Reset -->
+      <button onclick="triggerQuickAddDefaults()" class="flex flex-col items-center gap-1 transition-all group">
+        <div class="p-1.5 rounded-xl group-hover:bg-slate-100 text-slate-400 transition-colors">
+          <i data-lucide="check-circle" class="w-5 h-5 stroke-[2]"></i>
+        </div>
+        <span class="text-[10px] font-semibold text-slate-400">Finish</span>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- BOTTOM SHEET MODAL: QUICK ENTRY               -->
+  <!-- ============================================== -->
+  <div id="quick-entry-modal" class="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm hidden items-end justify-center">
+    <div class="w-full max-w-md bg-white rounded-t-[32px] p-6 max-h-[90vh] overflow-y-auto sheet-up relative soft-shadow">
+      
+      <!-- Top Drag Bar -->
+      <div class="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-4"></div>
+
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-teal-600 block">QUICK ENTRY</span>
+          <h3 class="text-xl font-extrabold text-slate-900">Add Exercise</h3>
+        </div>
+        <button onclick="closeModal('quick-entry-modal')" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Initial Set Weight / Reps Hero Box (Matches Amount Box from Image 4 & 5) -->
+      <div class="border-2 border-teal-500/20 bg-teal-50/30 rounded-2xl p-4 mb-5">
+        <div class="flex items-center justify-between text-xs font-bold text-teal-800 uppercase tracking-wider mb-2">
+          <span>Starting Weight & Reps</span>
+          <span class="bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full text-[10px]">Set #1</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-white rounded-xl p-2.5 border border-slate-200/80">
+            <label class="block text-[10px] font-bold text-slate-400 uppercase">Weight (kg)</label>
+            <input type="number" id="quick-entry-weight" value="20" step="0.5" class="w-full font-extrabold text-xl text-slate-900 bg-transparent focus:outline-none">
+          </div>
+          <div class="bg-white rounded-xl p-2.5 border border-slate-200/80">
+            <label class="block text-[10px] font-bold text-slate-400 uppercase">Reps</label>
+            <input type="number" id="quick-entry-reps" value="10" class="w-full font-extrabold text-xl text-slate-900 bg-transparent focus:outline-none">
+          </div>
+        </div>
+      </div>
+
+      <!-- Exercise Name -->
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Exercise Name</label>
+        <div class="relative">
+          <i data-lucide="edit-3" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></i>
+          <input type="text" id="quick-entry-name" placeholder="e.g. Incline Dumbbell Press" class="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-10 pr-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500 focus:bg-white transition-all">
+        </div>
+      </div>
+
+      <!-- Split / Group Category Chips -->
+      <div class="mb-5">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Group Split</span>
+          <button onclick="closeModal('quick-entry-modal'); openModal('add-group-modal');" class="text-xs font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> New
+          </button>
+        </div>
+        <div id="quick-group-chips" class="flex flex-wrap gap-2">
+          <!-- Dynamically populated group pills -->
+        </div>
+      </div>
+
+      <!-- Body Part Grid Chips (Pastel Tinted Icon Cards matching image 4) -->
+      <div class="mb-5">
+        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Body Part</label>
+        <div id="quick-part-grid" class="grid grid-cols-3 gap-2.5 max-h-44 overflow-y-auto pr-1">
+          <!-- Dynamically populated body part cards -->
+        </div>
+      </div>
+
+      <!-- Equipment Type (Cash/Card/UPI style pills from image 4) -->
+      <div class="mb-6">
+        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Equipment Type</label>
+        <div id="equipment-chips" class="flex flex-wrap gap-2">
+          <button type="button" onclick="selectEquipment('Dumbbell')" class="equip-chip active-chip bg-teal-600 text-white border border-teal-600 rounded-xl px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 transition-all">
+            <i data-lucide="dumbbell" class="w-3.5 h-3.5"></i> Dumbbell
+          </button>
+          <button type="button" onclick="selectEquipment('Machine')" class="equip-chip bg-slate-50 text-slate-700 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 transition-all">
+            <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Machine
+          </button>
+          <button type="button" onclick="selectEquipment('Barbell')" class="equip-chip bg-slate-50 text-slate-700 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 transition-all">
+            <i data-lucide="activity" class="w-3.5 h-3.5"></i> Barbell
+          </button>
+          <button type="button" onclick="selectEquipment('Cable')" class="equip-chip bg-slate-50 text-slate-700 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 transition-all">
+            <i data-lucide="git-commit" class="w-3.5 h-3.5"></i> Cable
+          </button>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="grid grid-cols-2 gap-3 pt-2">
+        <button onclick="closeModal('quick-entry-modal')" class="py-3.5 rounded-2xl border border-slate-200 text-slate-600 text-sm font-bold hover:bg-slate-50 transition-colors">
+          Cancel
+        </button>
+        <button onclick="saveQuickEntryExercise()" class="py-3.5 rounded-2xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white text-sm font-bold shadow-lg shadow-teal-600/30 transition-all flex items-center justify-center gap-2">
+          <i data-lucide="check" class="w-4 h-4 stroke-[3]"></i> Add to Session
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal: Add Group / Split -->
+  <div id="add-group-modal" class="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 soft-shadow relative">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="folder-plus" class="w-5 h-5 text-teal-600"></i> New Split Group
+        </h3>
+        <button onclick="closeModal('add-group-modal')" class="text-slate-400 hover:text-slate-700 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Group Name</label>
+          <input type="text" id="new-group-name" placeholder="e.g. Upper Body, Front, Back, Push" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Description (Optional)</label>
+          <input type="text" id="new-group-desc" placeholder="e.g. Compound presses and anterior work" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-sm font-medium text-slate-800 focus:outline-none focus:border-teal-500">
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 mt-6">
+        <button onclick="closeModal('add-group-modal')" class="px-4 py-2.5 rounded-2xl text-slate-500 hover:text-slate-800 text-xs font-bold">Cancel</button>
+        <button onclick="saveNewGroup()" class="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-2xl text-xs font-bold shadow-md transition-colors">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Body Part to Group -->
+  <div id="add-part-modal" class="fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 soft-shadow relative">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+          <i data-lucide="plus-circle" class="w-5 h-5 text-teal-600"></i> Add Muscle Part
+        </h3>
+        <button onclick="closeModal('add-part-modal')" class="text-slate-400 hover:text-slate-700 p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <input type="hidden" id="target-group-id-for-part">
+
+      <div class="mb-4">
+        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Body Part Name</label>
+        <input type="text" id="new-part-name" placeholder="e.g. Deltoids, Hamstrings, Biceps" class="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-sm font-semibold text-slate-800 focus:outline-none focus:border-teal-500">
+      </div>
+
+      <div class="flex justify-end gap-2 mt-4">
+        <button onclick="closeModal('add-part-modal')" class="px-4 py-2.5 rounded-2xl text-slate-500 hover:text-slate-800 text-xs font-bold">Cancel</button>
+        <button onclick="saveNewPartToGroup()" class="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-2xl text-xs font-bold shadow-md transition-colors">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Javascript Logic -->
+  <script>
+    /* ====================================================================
+       DATA ARCHITECTURE & PALETTES
+       ==================================================================== */
+    const DEFAULT_GROUPS = [
+      {
+        id: 'grp-upper',
+        name: 'Upper Body',
+        desc: 'Chest, Back, Shoulders, Arms',
+        parts: ['Chest', 'Shoulders', 'Biceps', 'Triceps', 'Upper Back']
+      },
+      {
+        id: 'grp-front',
+        name: 'Front (Anterior)',
+        desc: 'Pecs, Abs, Front Delts, Quads',
+        parts: ['Chest', 'Front Delts', 'Biceps', 'Abs / Core', 'Quadriceps']
+      },
+      {
+        id: 'grp-back',
+        name: 'Back (Posterior)',
+        desc: 'Lats, Traps, Rear Delts, Hamstrings',
+        parts: ['Lats', 'Rear Delts', 'Lower Back', 'Hamstrings', 'Glutes']
+      },
+      {
+        id: 'grp-lower',
+        name: 'Lower Body',
+        desc: 'Quadriceps, Hamstrings, Calves, Glutes',
+        parts: ['Quadriceps', 'Hamstrings', 'Calves', 'Glutes']
+      }
+    ];
+
+    // Pastel styling for chips matching the screenshots
+    const PASTEL_PALETTE = [
+      { bg: 'bg-[#e0f7f3]', text: 'text-[#0d9488]', border: 'border-[#99f6e4]', ring: '#0d9488', icon: 'activity' },
+      { bg: 'bg-[#e0f2fe]', text: 'text-[#0284c7]', border: 'border-[#bae6fd]', ring: '#0284c7', icon: 'disc' },
+      { bg: 'bg-[#fef3c7]', text: 'text-[#d97706]', border: 'border-[#fde68a]', ring: '#d97706', icon: 'zap' },
+      { bg: 'bg-[#ffe4e6]', text: 'text-[#e11d48]', border: 'border-[#fecdd3]', ring: '#e11d48', icon: 'heart' },
+      { bg: 'bg-[#f3e8ff]', text: 'text-[#9333ea]', border: 'border-[#e9d5ff]', ring: '#9333ea', icon: 'layers' }
+    ];
+
+    const STORAGE_KEY_GROUPS = 'pulsefit_groups_data';
+    const STORAGE_KEY_SESSIONS = 'pulsefit_sessions_data';
+
+    let groups = [];
+    let sessions = {};
+    let currentDateKey = getTodayDateString();
+
+    // Quick Entry Selected State
+    let selectedGroupForQuickEntry = null;
+    let selectedPartForQuickEntry = null;
+    let selectedEquipmentForQuickEntry = 'Dumbbell';
+
+    let volumeChartInstance = null;
+    let partsChartInstance = null;
+
+    /* ====================================================================
+       INITIALIZATION
+       ==================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      loadData();
+      initDatePicker();
+      renderGroups();
+      renderDailyTracker();
+      lucide.createIcons();
+    });
+
+    function getTodayDateString() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function initDatePicker() {
+      const picker = document.getElementById('active-date-picker');
+      picker.value = currentDateKey;
+      picker.addEventListener('change', (e) => {
+        currentDateKey = e.target.value;
+        renderDailyTracker();
+      });
+    }
+
+    function loadData() {
+      try {
+        const storedGroups = localStorage.getItem(STORAGE_KEY_GROUPS);
+        groups = storedGroups ? JSON.parse(storedGroups) : DEFAULT_GROUPS;
+
+        const storedSessions = localStorage.getItem(STORAGE_KEY_SESSIONS);
+        sessions = storedSessions ? JSON.parse(storedSessions) : getSeedSessions();
+      } catch (err) {
+        console.error("Storage load error", err);
+        groups = DEFAULT_GROUPS;
+        sessions = getSeedSessions();
+      }
+      saveGroups();
+      saveSessions();
+    }
+
+    function getSeedSessions() {
+      const today = getTodayDateString();
+      return {
+        [today]: {
+          date: today,
+          exercises: [
+            {
+              id: 'ex-1',
+              name: 'Incline Dumbbell Press',
+              group: 'Upper Body',
+              part: 'Chest',
+              equipment: 'Dumbbell',
+              sets: [
+                { setNumber: 1, weight: 24, reps: 12, completed: true },
+                { setNumber: 2, weight: 26, reps: 10, completed: true },
+                { setNumber: 3, weight: 28, reps: 8, completed: false }
+              ]
+            },
+            {
+              id: 'ex-2',
+              name: 'Seated Cable Lateral Raise',
+              group: 'Upper Body',
+              part: 'Shoulders',
+              equipment: 'Cable',
+              sets: [
+                { setNumber: 1, weight: 12, reps: 15, completed: true },
+                { setNumber: 2, weight: 14, reps: 12, completed: false }
+              ]
+            }
+          ]
+        }
+      };
+    }
+
+    function saveGroups() {
+      localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(groups));
+    }
+
+    function saveSessions() {
+      localStorage.setItem(STORAGE_KEY_SESSIONS, JSON.stringify(sessions));
+    }
+
+    /* ====================================================================
+       NAVIGATION & VIEWS
+       ==================================================================== */
+    function switchView(viewName) {
+      const views = ['home', 'groups', 'history'];
+      views.forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        const navBtn = document.getElementById(`nav-btn-${v}`);
+        if (v === viewName) {
+          el.classList.remove('hidden');
+          if (navBtn) {
+            navBtn.querySelector('div').className = 'p-1.5 rounded-xl bg-teal-50 text-teal-600 transition-colors';
+            navBtn.querySelector('span').className = 'text-[10px] font-bold text-teal-700';
+          }
+        } else {
+          el.classList.add('hidden');
+          if (navBtn) {
+            navBtn.querySelector('div').className = 'p-1.5 rounded-xl text-slate-400 group-hover:bg-slate-100 transition-colors';
+            navBtn.querySelector('span').className = 'text-[10px] font-semibold text-slate-400';
+          }
+        }
+      });
+
+      if (viewName === 'history') {
+        renderHistoryAndCharts();
+      }
+      lucide.createIcons();
+    }
+
+    /* ====================================================================
+       DAILY TRACKER RENDERING
+       ==================================================================== */
+    function renderDailyTracker() {
+      const currentSession = sessions[currentDateKey] || { exercises: [] };
+      const exercises = currentSession.exercises || [];
+
+      // Calculate aggregates
+      let totalSets = 0;
+      let completedSets = 0;
+      let totalVolume = 0;
+
+      exercises.forEach(ex => {
+        ex.sets.forEach(st => {
+          totalSets++;
+          if (st.completed) completedSets++;
+          const w = parseFloat(st.weight) || 0;
+          const r = parseInt(st.reps, 10) || 0;
+          totalVolume += (w * r);
+        });
+      });
+
+      // Update Hero Card
+      document.getElementById('hero-volume-val').textContent = Math.round(totalVolume).toLocaleString();
+      document.getElementById('hero-exercises-count').textContent = exercises.length;
+      document.getElementById('hero-sets-count').textContent = totalSets;
+      document.getElementById('hero-completed-sets-count').textContent = completedSets;
+      document.getElementById('badge-total-items').textContent = exercises.length;
+
+      const [y, m, d] = currentDateKey.split('-');
+      const dateObj = new Date(y, m - 1, d);
+      const isToday = currentDateKey === getTodayDateString();
+      document.getElementById('hero-date-text').textContent = isToday
+        ? `Today • ${dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}`
+        : `Logged for ${dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}`;
+
+      // Render Category Carousel with circular arc rings (Like Screenshot 2 & 6)
+      renderCategoryRings(exercises);
+
+      // Render Exercise Cards
+      const container = document.getElementById('session-exercises-list');
+      if (exercises.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white soft-shadow border border-slate-100 rounded-3xl p-8 text-center">
+            <div class="w-14 h-14 bg-teal-50 rounded-2xl flex items-center justify-center mx-auto mb-3 text-teal-600">
+              <i data-lucide="dumbbell" class="w-7 h-7"></i>
+            </div>
+            <h4 class="text-sm font-extrabold text-slate-800">No exercises logged yet</h4>
+            <p class="text-xs text-slate-400 max-w-xs mx-auto mt-1 mb-4">Tap the orange plus button below or quick setup to start tracking your sets today.</p>
+            <button onclick="openModal('quick-entry-modal')" class="bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-5 py-2.5 rounded-2xl shadow-md transition-all inline-flex items-center gap-1.5">
+              <i data-lucide="zap" class="w-3.5 h-3.5"></i> Quick Setup
+            </button>
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = exercises.map((ex, exIdx) => {
+        const pastel = PASTEL_PALETTE[exIdx % PASTEL_PALETTE.length];
+        const exVol = ex.sets.reduce((sum, s) => sum + ((parseFloat(s.weight) || 0) * (parseInt(s.reps, 10) || 0)), 0);
+
+        return `
+          <div class="bg-white soft-shadow border border-slate-100 rounded-3xl p-4 transition-all">
+            <!-- Exercise Header Item (Similar to Transaction Row in Image 2 & 5) -->
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl ${pastel.bg} ${pastel.border} border flex items-center justify-center ${pastel.text}">
+                  <i data-lucide="${getEquipmentIcon(ex.equipment)}" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h4 class="text-sm font-extrabold text-slate-900">${escapeHtml(ex.name)}</h4>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span>
+                    <span class="text-[11px] font-semibold text-slate-400">${escapeHtml(ex.part)}</span>
+                    <span class="text-[11px] font-bold text-teal-700 bg-teal-50 px-2 py-0.2 rounded-md">${escapeHtml(ex.equipment)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right: Volume Total & Remove -->
+              <div class="text-right flex items-center gap-2">
+                <div>
+                  <span class="text-sm font-extrabold text-slate-800">${Math.round(exVol)} <span class="text-[10px] text-slate-400">kg</span></span>
+                  <span class="block text-[10px] text-slate-400 font-semibold">${ex.sets.length} sets</span>
+                </div>
+                <button onclick="deleteExercise('${ex.id}')" class="w-8 h-8 rounded-xl bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-500 flex items-center justify-center transition-colors">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Set Checkers (Pill rows matching the clean app layout) -->
+            <div class="mt-3 space-y-2">
+              ${ex.sets.map((st, sIdx) => `
+                <div class="flex items-center justify-between bg-slate-50/80 hover:bg-slate-100/70 border border-slate-100 rounded-2xl px-3 py-2 transition-colors">
+                  <div class="flex items-center gap-2.5">
+                    <span class="text-[11px] font-extrabold text-slate-400 w-5">#${sIdx + 1}</span>
+                    <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2 py-1">
+                      <input type="number" step="0.5" value="${st.weight}" onchange="updateSetVal('${ex.id}', ${sIdx}, 'weight', this.value)" class="w-12 text-xs font-bold text-slate-800 bg-transparent focus:outline-none">
+                      <span class="text-[10px] text-slate-400 font-bold">kg</span>
+                    </div>
+                    <span class="text-slate-300 text-xs">×</span>
+                    <div class="flex items-center gap-1 bg-white border border-slate-200 rounded-xl px-2 py-1">
+                      <input type="number" value="${st.reps}" onchange="updateSetVal('${ex.id}', ${sIdx}, 'reps', this.value)" class="w-9 text-xs font-bold text-slate-800 bg-transparent focus:outline-none">
+                      <span class="text-[10px] text-slate-400 font-bold">reps</span>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-1.5">
+                    <button onclick="toggleSetCompleted('${ex.id}', ${sIdx})" class="w-7 h-7 rounded-xl flex items-center justify-center transition-all ${st.completed ? 'bg-teal-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-300'}">
+                      <i data-lucide="check" class="w-4 h-4 ${st.completed ? 'stroke-[3]' : 'opacity-30'}"></i>
+                    </button>
+                    <button onclick="deleteSet('${ex.id}', ${sIdx})" class="w-6 h-6 text-slate-300 hover:text-rose-500 flex items-center justify-center transition-colors">
+                      <i data-lucide="minus" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <!-- Footer: Add Set Button -->
+            <button onclick="addSetToExercise('${ex.id}')" class="w-full mt-2.5 py-2 rounded-xl border border-dashed border-slate-200 hover:border-teal-500/50 hover:bg-teal-50/30 text-teal-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-all">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Set
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function renderCategoryRings(exercises) {
+      const container = document.getElementById('category-pills-row');
+      const counts = {};
+      let grandTotal = 0;
+
+      exercises.forEach(e => {
+        counts[e.part] = (counts[e.part] || 0) + e.sets.length;
+        grandTotal += e.sets.length;
+      });
+
+      const parts = Object.keys(counts);
+
+      if (parts.length === 0) {
+        container.innerHTML = `
+          <div class="w-full text-center py-2 text-xs font-medium text-slate-400">
+            No muscle activity yet for this session.
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = parts.map((part, idx) => {
+        const pastel = PASTEL_PALETTE[idx % PASTEL_PALETTE.length];
+        const setsCount = counts[part];
+        const pct = grandTotal > 0 ? Math.round((setsCount / grandTotal) * 100) : 0;
+
+        return `
+          <div class="flex-shrink-0 flex flex-col items-center min-w-[76px]">
+            <!-- Styled Icon Circle with ring mimicking the app circular indicators -->
+            <div class="w-13 h-13 w-12 h-12 rounded-full ${pastel.bg} ${pastel.border} border-2 flex items-center justify-center ${pastel.text} mb-1.5 shadow-sm relative">
+              <i data-lucide="${pastel.icon}" class="w-5 h-5"></i>
+            </div>
+            <span class="text-xs font-extrabold text-slate-800 truncate max-w-[80px]">${escapeHtml(part)}</span>
+            <span class="text-[10px] font-bold text-slate-400">${setsCount} sets</span>
+            <span class="text-[10px] font-extrabold ${pastel.text}">${pct}%</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function getEquipmentIcon(equip) {
+      switch (equip) {
+        case 'Dumbbell': return 'dumbbell';
+        case 'Machine': return 'cpu';
+        case 'Barbell': return 'activity';
+        case 'Cable': return 'git-commit';
+        default: return 'zap';
+      }
+    }
+
+    /* ====================================================================
+       QUICK ENTRY MODAL LOGIC
+       ==================================================================== */
+    function populateQuickEntryModal() {
+      // Group chips
+      const groupChipsContainer = document.getElementById('quick-group-chips');
+      if (!selectedGroupForQuickEntry && groups.length > 0) {
+        selectedGroupForQuickEntry = groups[0].name;
+      }
+
+      groupChipsContainer.innerHTML = groups.map(g => {
+        const isSelected = g.name === selectedGroupForQuickEntry;
+        return `
+          <button type="button" onclick="selectGroupInQuickEntry('${escapeHtml(g.name)}')" class="px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${isSelected ? 'bg-teal-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">
+            ${escapeHtml(g.name)}
+          </button>
+        `;
+      }).join('');
+
+      // Body parts grid cards (Matching Image 4 Category Cards)
+      const partsGrid = document.getElementById('quick-part-grid');
+      const currGroup = groups.find(g => g.name === selectedGroupForQuickEntry);
+
+      if (!currGroup || currGroup.parts.length === 0) {
+        partsGrid.innerHTML = `<div class="col-span-3 text-xs text-slate-400 py-3 text-center">No parts in this split. Add one!</div>`;
+        return;
+      }
+
+      if (!selectedPartForQuickEntry || !currGroup.parts.includes(selectedPartForQuickEntry)) {
+        selectedPartForQuickEntry = currGroup.parts[0];
+      }
+
+      partsGrid.innerHTML = currGroup.parts.map((p, pIdx) => {
+        const pastel = PASTEL_PALETTE[pIdx % PASTEL_PALETTE.length];
+        const isSelected = p === selectedPartForQuickEntry;
+
+        return `
+          <div onclick="selectPartInQuickEntry('${escapeHtml(p)}')" class="cursor-pointer rounded-2xl p-2.5 flex flex-col items-center justify-center text-center transition-all border ${isSelected ? 'ring-2 ring-teal-600 bg-white border-teal-500 shadow-md' : 'bg-slate-50 border-slate-200/80 hover:bg-white'}">
+            <div class="w-9 h-9 rounded-xl ${pastel.bg} ${pastel.text} flex items-center justify-center mb-1.5">
+              <i data-lucide="${pastel.icon}" class="w-4 h-4"></i>
+            </div>
+            <span class="text-[11px] font-bold text-slate-800 truncate w-full">${escapeHtml(p)}</span>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function selectGroupInQuickEntry(grpName) {
+      selectedGroupForQuickEntry = grpName;
+      populateQuickEntryModal();
+    }
+
+    function selectPartInQuickEntry(partName) {
+      selectedPartForQuickEntry = partName;
+      populateQuickEntryModal();
+    }
+
+    function selectEquipment(equip) {
+      selectedEquipmentForQuickEntry = equip;
+      const buttons = document.querySelectorAll('.equip-chip');
+      buttons.forEach(b => {
+        if (b.textContent.includes(equip)) {
+          b.className = 'equip-chip bg-teal-600 text-white border border-teal-600 rounded-xl px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm';
+        } else {
+          b.className = 'equip-chip bg-slate-50 text-slate-700 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold flex items-center gap-1.5 transition-all';
+        }
+      });
+    }
+
+    function saveQuickEntryExercise() {
+      const nameInput = document.getElementById('quick-entry-name');
+      const weightInput = document.getElementById('quick-entry-weight');
+      const repsInput = document.getElementById('quick-entry-reps');
+
+      const name = nameInput.value.trim() || `${selectedPartForQuickEntry || 'Exercise'} Press`;
+      const weight = parseFloat(weightInput.value) || 20;
+      const reps = parseInt(repsInput.value, 10) || 10;
+
+      if (!sessions[currentDateKey]) {
+        sessions[currentDateKey] = { date: currentDateKey, exercises: [] };
+      }
+
+      sessions[currentDateKey].exercises.push({
+        id: 'ex-' + Date.now(),
+        name: name,
+        group: selectedGroupForQuickEntry || 'General',
+        part: selectedPartForQuickEntry || 'Chest',
+        equipment: selectedEquipmentForQuickEntry,
+        sets: [
+          { setNumber: 1, weight: weight, reps: reps, completed: true }
+        ]
+      });
+
+      saveSessions();
+      renderDailyTracker();
+      closeModal('quick-entry-modal');
+      nameInput.value = '';
+      showToast(`Added ${name}!`, 'success');
+    }
+
+    /* ====================================================================
+       SET & EXERCISE MODIFICATIONS
+       ==================================================================== */
+    function addSetToExercise(exerciseId) {
+      const currentSession = sessions[currentDateKey];
+      if (!currentSession) return;
+
+      const exercise = currentSession.exercises.find(e => e.id === exerciseId);
+      if (!exercise) return;
+
+      const lastSet = exercise.sets[exercise.sets.length - 1];
+      const newWeight = lastSet ? lastSet.weight : 20;
+      const newReps = lastSet ? lastSet.reps : 10;
+
+      exercise.sets.push({
+        setNumber: exercise.sets.length + 1,
+        weight: newWeight,
+        reps: newReps,
+        completed: false
+      });
+
+      saveSessions();
+      renderDailyTracker();
+    }
+
+    function updateSetVal(exerciseId, setIdx, field, val) {
+      const currentSession = sessions[currentDateKey];
+      if (!currentSession) return;
+
+      const exercise = currentSession.exercises.find(e => e.id === exerciseId);
+      if (!exercise || !exercise.sets[setIdx]) return;
+
+      exercise.sets[setIdx][field] = parseFloat(val) || 0;
+      saveSessions();
+
+      // Recalculate summary metrics dynamically
+      updateMetricsHeaderDirectly();
+    }
+
+    function toggleSetCompleted(exerciseId, setIdx) {
+      const currentSession = sessions[currentDateKey];
+      if (!currentSession) return;
+
+      const exercise = currentSession.exercises.find(e => e.id === exerciseId);
+      if (!exercise || !exercise.sets[setIdx]) return;
+
+      exercise.sets[setIdx].completed = !exercise.sets[setIdx].completed;
+      saveSessions();
+      renderDailyTracker();
+    }
+
+    function deleteSet(exerciseId, setIdx) {
+      const currentSession = sessions[currentDateKey];
+      if (!currentSession) return;
+
+      const exercise = currentSession.exercises.find(e => e.id === exerciseId);
+      if (!exercise) return;
+
+      if (exercise.sets.length <= 1) {
+        showToast("Exercise must have at least 1 set", "warning");
+        return;
+      }
+
+      exercise.sets.splice(setIdx, 1);
+      exercise.sets.forEach((s, i) => s.setNumber = i + 1);
+      saveSessions();
+      renderDailyTracker();
+    }
+
+    function deleteExercise(exerciseId) {
+      const currentSession = sessions[currentDateKey];
+      if (!currentSession) return;
+
+      currentSession.exercises = currentSession.exercises.filter(e => e.id !== exerciseId);
+      saveSessions();
+      renderDailyTracker();
+      showToast("Exercise removed", "info");
+    }
+
+    function updateMetricsHeaderDirectly() {
+      const currentSession = sessions[currentDateKey] || { exercises: [] };
+      let totalVolume = 0;
+      (currentSession.exercises || []).forEach(ex => {
+        ex.sets.forEach(st => {
+          totalVolume += ((parseFloat(st.weight) || 0) * (parseInt(st.reps, 10) || 0));
+        });
+      });
+      document.getElementById('hero-volume-val').textContent = Math.round(totalVolume).toLocaleString();
+    }
+
+    function triggerQuickAddDefaults() {
+      showToast("Session saved! Great work today.", "success");
+    }
+
+    /* ====================================================================
+       GROUPS & SPLITS CONFIG
+       ==================================================================== */
+    function renderGroups() {
+      const container = document.getElementById('groups-container');
+      if (groups.length === 0) {
+        container.innerHTML = `<div class="text-xs text-slate-400 py-6 text-center">No split groups. Create one above!</div>`;
+        return;
+      }
+
+      container.innerHTML = groups.map((grp, gIdx) => {
+        const pastel = PASTEL_PALETTE[gIdx % PASTEL_PALETTE.length];
+        return `
+          <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-4">
+            <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-xl ${pastel.bg} ${pastel.text} font-extrabold text-xs flex items-center justify-center">
+                  ${grp.name.slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h4 class="text-sm font-extrabold text-slate-900">${escapeHtml(grp.name)}</h4>
+                  <span class="text-[11px] font-semibold text-slate-400">${grp.parts.length} muscles included</span>
+                </div>
+              </div>
+              <button onclick="deleteGroup('${grp.id}')" class="text-slate-400 hover:text-rose-500 p-1">
+                <i data-lucide="trash" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            ${grp.desc ? `<p class="text-xs text-slate-500 mb-3">${escapeHtml(grp.desc)}</p>` : ''}
+
+            <!-- Badges -->
+            <div class="flex flex-wrap gap-1.5 mb-3">
+              ${grp.parts.map(p => `
+                <span class="inline-flex items-center gap-1 bg-white border border-slate-200 text-slate-700 text-[11px] font-bold px-2.5 py-1 rounded-xl">
+                  ${escapeHtml(p)}
+                  <button onclick="removePartFromGroup('${grp.id}', '${escapeHtml(p)}')" class="hover:text-rose-500 text-slate-400 ml-0.5">
+                    <i data-lucide="x" class="w-3 h-3"></i>
+                  </button>
+                </span>
+              `).join('')}
+            </div>
+
+            <button onclick="openAddPartModal('${grp.id}')" class="w-full py-2 bg-white hover:bg-slate-100 border border-slate-200 text-teal-700 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Muscle
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function openAddPartModal(groupId) {
+      document.getElementById('target-group-id-for-part').value = groupId;
+      document.getElementById('new-part-name').value = '';
+      openModal('add-part-modal');
+    }
+
+    function saveNewPartToGroup() {
+      const groupId = document.getElementById('target-group-id-for-part').value;
+      const partName = document.getElementById('new-part-name').value.trim();
+
+      if (!partName) return;
+
+      const group = groups.find(g => g.id === groupId);
+      if (!group) return;
+
+      if (group.parts.some(p => p.toLowerCase() === partName.toLowerCase())) {
+        showToast("Part already exists in this split", "warning");
+        return;
+      }
+
+      group.parts.push(partName);
+      saveGroups();
+      renderGroups();
+      closeModal('add-part-modal');
+      showToast(`Added ${partName} to ${group.name}`, "success");
+    }
+
+    function removePartFromGroup(groupId, partName) {
+      const group = groups.find(g => g.id === groupId);
+      if (!group) return;
+
+      group.parts = group.parts.filter(p => p !== partName);
+      saveGroups();
+      renderGroups();
+      showToast(`Removed ${partName}`, "info");
+    }
+
+    function saveNewGroup() {
+      const name = document.getElementById('new-group-name').value.trim();
+      const desc = document.getElementById('new-group-desc').value.trim();
+
+      if (!name) {
+        showToast("Enter split group name", "warning");
+        return;
+      }
+
+      groups.push({
+        id: 'grp-' + Date.now(),
+        name: name,
+        desc: desc,
+        parts: []
+      });
+
+      saveGroups();
+      renderGroups();
+      closeModal('add-group-modal');
+      document.getElementById('new-group-name').value = '';
+      document.getElementById('new-group-desc').value = '';
+      showToast(`Created split ${name}`, "success");
+    }
+
+    function deleteGroup(groupId) {
+      if (groups.length <= 1) {
+        showToast("You need at least one split group", "warning");
+        return;
+      }
+      groups = groups.filter(g => g.id !== groupId);
+      saveGroups();
+      renderGroups();
+      showToast("Group removed", "info");
+    }
+
+    /* ====================================================================
+       ANALYTICS & CHARTS
+       ==================================================================== */
+    function renderHistoryAndCharts() {
+      // History List
+      const historyContainer = document.getElementById('history-log-list');
+      const dates = Object.keys(sessions).sort().reverse();
+
+      if (dates.length === 0) {
+        historyContainer.innerHTML = `<div class="text-xs text-slate-400 py-3 text-center">No history recorded yet.</div>`;
+      } else {
+        historyContainer.innerHTML = dates.map(dKey => {
+          const s = sessions[dKey];
+          const exCount = (s.exercises || []).length;
+          let vol = 0;
+          (s.exercises || []).forEach(e => {
+            e.sets.forEach(st => {
+              vol += ((parseFloat(st.weight) || 0) * (parseInt(st.reps, 10) || 0));
+            });
+          });
+
+          const isSelected = dKey === currentDateKey;
+
+          return `
+            <div onclick="selectDateFromHistory('${dKey}')" class="p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${isSelected ? 'bg-teal-50 border-teal-300' : 'bg-slate-50 border-slate-200/70 hover:bg-white'}">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-teal-600 font-bold text-xs">
+                  <i data-lucide="calendar" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <h5 class="text-xs font-bold text-slate-900">${dKey}</h5>
+                  <span class="text-[11px] text-slate-400">${exCount} exercises logged</span>
+                </div>
+              </div>
+              <div class="text-right">
+                <span class="text-xs font-extrabold text-slate-800">${Math.round(vol)} kg</span>
+                <span class="block text-[10px] text-teal-600 font-bold">Open &rarr;</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Chart 1: Volume Line (Styled for Dark Analytics container)
+      const chartDates = Object.keys(sessions).sort().slice(-7);
+      const volumes = chartDates.map(dk => {
+        let vol = 0;
+        (sessions[dk].exercises || []).forEach(e => {
+          e.sets.forEach(st => {
+            vol += ((parseFloat(st.weight) || 0) * (parseInt(st.reps, 10) || 0));
+          });
+        });
+        return Math.round(vol);
+      });
+
+      const volumeCtx = document.getElementById('volumeChart').getContext('2d');
+      if (volumeChartInstance) volumeChartInstance.destroy();
+
+      volumeChartInstance = new Chart(volumeCtx, {
+        type: 'line',
+        data: {
+          labels: chartDates.length ? chartDates.map(d => d.slice(5)) : ['Today'],
+          datasets: [{
+            data: chartDates.length ? volumes : [0],
+            borderColor: '#2dd4bf',
+            backgroundColor: 'rgba(45, 212, 191, 0.15)',
+            fill: true,
+            tension: 0.4,
+            borderWidth: 3,
+            pointBackgroundColor: '#2dd4bf',
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: {
+              grid: { color: 'rgba(255, 255, 255, 0.08)' },
+              ticks: { color: '#94a3b8', font: { size: 10 } }
+            },
+            x: {
+              grid: { display: false },
+              ticks: { color: '#94a3b8', font: { size: 10 } }
+            }
+          }
+        }
+      });
+
+      // Chart 2: Donut Body Part Distribution
+      const partCounts = {};
+      Object.values(sessions).forEach(s => {
+        (s.exercises || []).forEach(e => {
+          if (e.part) {
+            partCounts[e.part] = (partCounts[e.part] || 0) + e.sets.length;
+          }
+        });
+      });
+
+      const partLabels = Object.keys(partCounts);
+      const partValues = Object.values(partCounts);
+
+      const partsCtx = document.getElementById('partsDistributionChart').getContext('2d');
+      if (partsChartInstance) partsChartInstance.destroy();
+
+      partsChartInstance = new Chart(partsCtx, {
+        type: 'doughnut',
+        data: {
+          labels: partLabels.length ? partLabels : ['No sets recorded'],
+          datasets: [{
+            data: partValues.length ? partValues : [1],
+            backgroundColor: ['#0d9488', '#0284c7', '#d97706', '#e11d48', '#9333ea'],
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { font: { size: 11, family: 'Plus Jakarta Sans' }, color: '#334155' }
+            }
+          }
+        }
+      });
+
+      lucide.createIcons();
+    }
+
+    function selectDateFromHistory(dateKey) {
+      currentDateKey = dateKey;
+      document.getElementById('active-date-picker').value = dateKey;
+      switchView('home');
+      renderDailyTracker();
+    }
+
+    /* ====================================================================
+       MODAL & TOAST HELPERS
+       ==================================================================== */
+    function openModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        if (id === 'quick-entry-modal') {
+          populateQuickEntryModal();
+        }
+      }
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+    }
+
+    function showToast(message, type = "info") {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+
+      let icon = 'info';
+      let borderCol = 'border-slate-200';
+      if (type === 'success') {
+        icon = 'check-circle-2';
+        borderCol = 'border-teal-300 text-teal-800 bg-teal-50/90';
+      } else if (type === 'warning') {
+        icon = 'alert-triangle';
+        borderCol = 'border-amber-300 text-amber-800 bg-amber-50/90';
+      } else {
+        borderCol = 'border-slate-200 text-slate-800 bg-white/90';
+      }
+
+      toast.className = `flex items-center gap-2.5 backdrop-blur-md border ${borderCol} px-4 py-3 rounded-2xl shadow-xl text-xs font-bold transform transition-all duration-300 opacity-0 translate-y-2 pointer-events-auto`;
+      toast.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4"></i> <span>${escapeHtml(message)}</span>`;
+
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      setTimeout(() => {
+        toast.classList.remove('opacity-0', 'translate-y-2');
+      }, 10);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 2500);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>

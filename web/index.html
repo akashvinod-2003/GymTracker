@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="description" content="PulseFit - Daily Gym Workout Tracker, Streaks & Volume Analytics.">
+
+  <!-- Web & Theme Color -->
+  <meta id="theme-color-meta" name="theme-color" content="#0B1329">
+  <meta name="msapplication-TileColor" content="#0B1329">
+
+  <!-- iOS PWA Meta Tags & Icons (dynamically updated by in-app setting) -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta id="status-bar-meta" name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PulseFit">
+  <link id="apple-touch-icon" rel="apple-touch-icon" href="icons/apple-touch-icon-dark.png">
+  <link id="apple-touch-icon-192" rel="apple-touch-icon" sizes="192x192" href="icons/apple-touch-icon-dark.png">
+  <link id="apple-touch-icon-512" rel="apple-touch-icon" sizes="512x512" href="icons/icon-dark-512.png">
+
+  <!-- Favicon (dynamically updated by in-app setting) -->
+  <link id="app-favicon" rel="icon" type="image/png" href="favicon_dark.png">
+  <script>
+    (function() {
+      function syncPwaTheme() {
+        try {
+          var pwaMode = localStorage.getItem('flutter.app_pwa_icon_mode');
+          var themeMode = localStorage.getItem('flutter.app_theme_mode');
+          var isSysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          
+          var isAppDark = themeMode === '"dark"' || themeMode === 'dark' || 
+                          ((!themeMode || themeMode === '"system"' || themeMode === 'system') && isSysDark);
+
+          var isDark = true;
+          if (pwaMode === '"dark"' || pwaMode === 'dark') {
+            isDark = true;
+          } else if (pwaMode === '"light"' || pwaMode === 'light') {
+            isDark = false;
+          } else {
+            // Auto / match app theme
+            isDark = isAppDark;
+          }
+
+          // 1. Android Manifest Switch
+          var manifestLink = document.getElementById('app-manifest');
+          var targetManifest = isDark ? 'manifest-dark.json?v=5' : 'manifest-light.json?v=5';
+          if (manifestLink && manifestLink.getAttribute('href') !== targetManifest) {
+            manifestLink.href = targetManifest;
+          }
+
+          // 2. iOS Apple Touch Icon Switch
+          var appleIcon = document.getElementById('apple-touch-icon');
+          var appleIcon192 = document.getElementById('apple-touch-icon-192');
+          var appleIcon512 = document.getElementById('apple-touch-icon-512');
+          var targetAppleIcon = isDark ? 'icons/apple-touch-icon-dark.png' : 'icons/apple-touch-icon-light.png';
+          var targetAppleIcon512 = isDark ? 'icons/icon-dark-512.png' : 'icons/icon-light-512.png';
+          if (appleIcon && appleIcon.getAttribute('href') !== targetAppleIcon) {
+            appleIcon.href = targetAppleIcon;
+          }
+          if (appleIcon192 && appleIcon192.getAttribute('href') !== targetAppleIcon) {
+            appleIcon192.href = targetAppleIcon;
+          }
+          if (appleIcon512 && appleIcon512.getAttribute('href') !== targetAppleIcon512) {
+            appleIcon512.href = targetAppleIcon512;
+          }
+
+          // 3. Favicon Switch
+          var fav = document.getElementById('app-favicon');
+          var targetFavicon = isDark ? 'favicon_dark.png' : 'favicon_light.png';
+          if (fav && fav.getAttribute('href') !== targetFavicon) {
+            fav.href = targetFavicon;
+          }
+
+          // 4. Status Bar & Theme Color
+          var themeColor = document.getElementById('theme-color-meta');
+          var statusBar = document.getElementById('status-bar-meta');
+          if (themeColor) themeColor.content = isDark ? '#0B1329' : '#FFFFFF';
+          if (statusBar) statusBar.content = isDark ? 'black-translucent' : 'default';
+        } catch (e) {}
+      }
+
+      window.addEventListener('storage', syncPwaTheme);
+      setInterval(syncPwaTheme, 750);
+      syncPwaTheme();
+    })();
+  </script>
+
+  <!-- Cache Prevention Meta Tags -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <title>PulseFit - Gym Workout Tracker</title>
+  <link id="app-manifest" rel="manifest" href="manifest-dark.json?v=5">
+
+  <!-- PWA Automatic Updates & Service Worker Registration -->
+  <script src="pwa-update.js"></script>
+</head>
+<body style="background-color: #0B1329; margin: 0; padding: 0;">
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
