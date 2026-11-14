@@ -230,6 +230,33 @@ class ProfileDrawer extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
 
+                  // Theme Pack Selector
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF162344) : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Row(
+                      children: [
+                        _ThemeOptionButton(
+                          title: 'Classic',
+                          icon: Icons.palette_outlined,
+                          isSelected: themeProvider.themePack == AppThemePack.classic,
+                          onTap: () => themeProvider.setThemePack(AppThemePack.classic),
+                        ),
+                        _ThemeOptionButton(
+                          title: 'Studio',
+                          icon: Icons.auto_awesome_rounded,
+                          isSelected: themeProvider.themePack == AppThemePack.studio,
+                          onTap: () => themeProvider.setThemePack(AppThemePack.studio),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
                   // Dark / Light Mode Selector
                   Container(
                     padding: const EdgeInsets.all(4),

@@ -245,6 +245,41 @@ class WorkoutProvider extends ChangeNotifier {
     }
   }
 
+  /// Puts back an exercise removed from the current session (used by Undo).
+  Future<void> restoreExercise(Exercise exercise, int index) async {
+    final session = currentSession;
+    if (session.exercises.any((e) => e.id == exercise.id)) return;
+    final updatedExercises = List<Exercise>.from(session.exercises)
+      ..insert(index.clamp(0, session.exercises.length), exercise);
+    final updatedSession = session.copyWith(exercises: updatedExercises);
+    _sessions[currentDateKey] = updatedSession;
+    notifyListeners();
+    if (_db != null) {
+      await _db!.saveSession(updatedSession);
+    }
+  }
+
+  /// Puts back a set removed from an exercise (used by Undo).
+  Future<void> restoreSet(String exerciseId, int setIndex, WorkoutSet set) async {
+    final session = currentSession;
+    final exIndex = session.exercises.indexWhere((e) => e.id == exerciseId);
+    if (exIndex == -1) return;
+    final ex = session.exercises[exIndex];
+    final updatedSets = List<WorkoutSet>.from(ex.sets)
+      ..insert(setIndex.clamp(0, ex.sets.length), set);
+    for (int i = 0; i < updatedSets.length; i++) {
+      updatedSets[i] = updatedSets[i].copyWith(setNumber: i + 1);
+    }
+    final updatedExercises = List<Exercise>.from(session.exercises);
+    updatedExercises[exIndex] = ex.copyWith(sets: updatedSets);
+    final updatedSession = session.copyWith(exercises: updatedExercises);
+    _sessions[currentDateKey] = updatedSession;
+    notifyListeners();
+    if (_db != null) {
+      await _db!.saveSession(updatedSession);
+    }
+  }
+
   // ----------------------------------------------------
   // SPLITS, BODY PARTS & EXERCISES HIERARCHY
   // ----------------------------------------------------

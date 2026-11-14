@@ -8,6 +8,9 @@ import 'providers/workout_provider.dart';
 import 'screens/auth_screen.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
+import 'packs/studio/screens/auth_screen.dart' as studio;
+import 'packs/studio/screens/home_screen.dart' as studio;
+import 'packs/studio/theme/app_theme.dart' as studio;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,15 +51,20 @@ class GymTrackerApp extends StatelessWidget {
       ],
       child: Consumer2<ThemeProvider, AuthProvider>(
         builder: (context, themeProvider, authProvider, _) {
+          final isStudio = themeProvider.themePack == AppThemePack.studio;
+          final Widget home;
+          if (authProvider.isAuthenticated) {
+            home = isStudio ? const studio.HomeScreen() : const HomeScreen();
+          } else {
+            home = isStudio ? const studio.AuthScreen() : const AuthScreen();
+          }
           return MaterialApp(
             title: 'PulseFit - Gym Tracker',
             debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
+            theme: isStudio ? studio.AppTheme.lightTheme : AppTheme.lightTheme,
+            darkTheme: isStudio ? studio.AppTheme.darkTheme : AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
-            home: authProvider.isAuthenticated
-                ? const HomeScreen()
-                : const AuthScreen(),
+            home: home,
           );
         },
       ),
