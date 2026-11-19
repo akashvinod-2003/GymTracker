@@ -278,7 +278,6 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
                 selectedDateKey: workoutProvider.currentDateKey,
                 onDateSelected: (date) {
                   workoutProvider.setDate(date);
-                  widget.onSelectSession();
                 },
               ),
               const SizedBox(height: 16),

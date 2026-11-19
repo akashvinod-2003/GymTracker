@@ -30,9 +30,23 @@ class SplitGroup {
 
     final trimmed = name.trim();
     if (trimmed.isEmpty) return 'SPLIT';
+
+    // Standard fitness abbreviations when user hasn't specified custom abbreviation:
+    final lower = trimmed.toLowerCase();
+    if (lower.contains('upper')) return 'UP';
+    if (lower.contains('lower')) return 'LOW';
+    if (lower.contains('push')) return 'PUSH';
+    if (lower.contains('pull')) return 'PULL';
+    if (lower.contains('leg')) return 'LEG';
+    if (lower.contains('chest')) return 'CHEST';
+    if (lower.contains('back')) return 'BACK';
+    if (lower.contains('arm')) return 'ARMS';
+    if (lower.contains('shoulder')) return 'SHLD';
+    if (lower.contains('core') || lower.contains('ab')) return 'ABS';
+
     if (trimmed.length <= 6) return trimmed.toUpperCase();
 
-    // Check for multiple words: e.g. "Push Pull Legs" -> "PPL", "Upper Body" -> "UB"
+    // Check for multiple words: e.g. "Push Pull Legs" -> "PPL"
     final words = trimmed.split(RegExp(r'\s+'));
     if (words.length > 1) {
       final initials = words.map((w) => w.isNotEmpty ? w[0].toUpperCase() : '').join('');

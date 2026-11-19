@@ -117,9 +117,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Flutter Core Bundles (main.dart.js, flutter_bootstrap.js, flutter.js):
+  // 3. Flutter Core Bundles (main.dart.js, main.dart.wasm, main.dart.mjs, flutter_bootstrap.js, flutter.js):
   // Network-First with Cache fallback so updates load immediately
-  if (pathname.endsWith('main.dart.js') || pathname.endsWith('flutter_bootstrap.js') || pathname.endsWith('flutter.js')) {
+  if (pathname.endsWith('main.dart.js') || pathname.endsWith('main.dart.wasm') || pathname.endsWith('main.dart.mjs') || pathname.endsWith('flutter_bootstrap.js') || pathname.endsWith('flutter.js')) {
     event.respondWith(
       fetch(request)
         .then((response) => {

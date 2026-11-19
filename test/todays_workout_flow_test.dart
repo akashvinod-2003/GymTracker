@@ -231,7 +231,7 @@ void main() {
       wp.dispose();
     });
 
-    test('getSplitNameForDate preserves historical splitName and updates scheduled splits', () {
+    test('getSplitNameForDate preserves historical splitName and updates scheduled splits', () async {
       final wp = WorkoutProvider();
 
       final pushSplit = SplitGroup(
@@ -289,6 +289,46 @@ void main() {
 
       final shortSunday = wp.getSplitShortNameForDate(DateTime(2026, 11, 15));
       expect(shortSunday, 'REST');
+
+      // 5. Upper Body returns UP for November 19, 2026 (Thursday)
+      final upperSplit = SplitGroup(
+        id: 'split-upper',
+        name: 'Upper Body',
+        shortName: 'UP',
+        days: const ['Thursday'],
+        parts: const {'Chest': ['Bench Press']},
+      );
+      wp.splitGroups.add(upperSplit);
+
+      final nov19 = DateTime(2026, 11, 19); // 2026-11-19 was Thursday
+      expect(wp.getSplitShortNameForDate(nov19), 'UP');
+
+      // 6. When user updates abbreviation to 'UB', calendar reflects it immediately
+      await wp.updateSplitGroup(upperSplit.copyWith(shortName: 'UB'));
+      expect(wp.getSplitShortNameForDate(nov19), 'UB');
+
+      // 7. Completed session on Nov 19 also reflects updated abbreviation
+      final upperSession = WorkoutSession(
+        date: '2026-11-19',
+        splitId: 'split-upper',
+        splitName: 'Upper Body',
+        exercises: [
+          Exercise(
+            id: 'ex-u1',
+            name: 'Bench Press',
+            group: 'Upper Body',
+            part: 'Chest',
+            equipment: 'Barbell',
+            sets: [WorkoutSet(setNumber: 1, weight: 80, reps: 8, completed: true)],
+          ),
+        ],
+      );
+      wp.sessions['2026-11-19'] = upperSession;
+      expect(wp.getSplitShortNameForDate(nov19), 'UB');
+
+      // Update back to UP
+      await wp.updateSplitGroup(upperSplit.copyWith(shortName: 'UP'));
+      expect(wp.getSplitShortNameForDate(nov19), 'UP');
 
       wp.dispose();
     });

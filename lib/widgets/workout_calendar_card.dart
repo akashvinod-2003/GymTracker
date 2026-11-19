@@ -233,7 +233,7 @@ class _WorkoutCalendarCardState extends State<WorkoutCalendarCard> {
                                   ),
                                 ),
                               ),
-                              if (shortName.isNotEmpty && shortName != 'WOD' && shortName != 'REST') ...[
+                              if (shortName.isNotEmpty) ...[
                                 const SizedBox(width: 6),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -248,7 +248,7 @@ class _WorkoutCalendarCardState extends State<WorkoutCalendarCard> {
                                     shortName,
                                     style: GoogleFonts.plusJakartaSans(
                                       color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                                      fontSize: 9,
+                                      fontSize: 9.5,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
@@ -399,10 +399,18 @@ class _WorkoutCalendarCardState extends State<WorkoutCalendarCard> {
                               : FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 1),
+                      const SizedBox(height: 2),
                       if (shortName.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? (isDark ? AppTheme.tealPrimary.withValues(alpha: 0.3) : AppTheme.tealPrimary.withValues(alpha: 0.15))
+                                : (hasWorkout
+                                    ? (isDark ? const Color(0xFF0F3635) : const Color(0xFFCCFBF1))
+                                    : Colors.transparent),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                           child: Text(
                             shortName,
                             maxLines: 1,
@@ -414,9 +422,9 @@ class _WorkoutCalendarCardState extends State<WorkoutCalendarCard> {
                                   : (hasWorkout
                                       ? (isDark ? const Color(0xFF34D399) : const Color(0xFF0D9488))
                                       : (isSunday ? const Color(0xFF94A3B8) : subColor)),
-                              fontSize: 7.5,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.3,
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.2,
                             ),
                           ),
                         )

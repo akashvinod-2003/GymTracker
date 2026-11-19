@@ -103,12 +103,19 @@ void main() {
       expect(reconstructed.shortName, 'PPL');
       expect(reconstructed.effectiveShortName, 'PPL');
 
-      // Without explicit shortName, generates sensible fallback
-      final multiWord = SplitGroup(id: 'split-s2', name: 'Upper Body Heavy', parts: const {});
-      expect(multiWord.effectiveShortName, 'UBH');
+      // Without explicit shortName, defaults to standard fitness abbreviations
+      final upperBody = SplitGroup(id: 'split-s2', name: 'Upper Body', parts: const {});
+      expect(upperBody.effectiveShortName, 'UP');
+
+      // User custom abbreviation takes precedence
+      final customUpper = SplitGroup(id: 'split-s2b', name: 'Upper Body', shortName: 'UP', parts: const {});
+      expect(customUpper.effectiveShortName, 'UP');
+
+      final lowerBody = SplitGroup(id: 'split-s2c', name: 'Lower Body', parts: const {});
+      expect(lowerBody.effectiveShortName, 'LOW');
 
       final singleWord = SplitGroup(id: 'split-s3', name: 'Legs', parts: const {});
-      expect(singleWord.effectiveShortName, 'LEGS');
+      expect(singleWord.effectiveShortName, 'LEG');
 
       final longWord = SplitGroup(id: 'split-s4', name: 'Conditioning', parts: const {});
       expect(longWord.effectiveShortName, 'CONDI');

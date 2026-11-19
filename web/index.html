@@ -163,7 +163,11 @@
         <img class="loader-img" src="favicon_dark.png" alt="PulseFit Logo" onerror="this.style.display='none'">
       </div>
       <h2 class="loader-brand">PulseFit</h2>
-      <p class="loader-sub">Loading workout tracker...</p>
+      <p id="loader-status" class="loader-sub">Loading workout tracker...</p>
+      <div id="loader-actions" style="display: none; flex-direction: column; align-items: center; gap: 8px; margin-top: 10px;">
+        <button onclick="window.location.reload(true)" style="background: #2DD4BF; color: #0B1329; border: none; padding: 8px 18px; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer; font-family: inherit;">Reload App</button>
+        <button onclick="try{localStorage.clear();caches.keys().then(function(k){return Promise.all(k.map(function(c){return caches.delete(c);}));}).then(function(){window.location.reload(true);});}catch(e){window.location.reload(true);}" style="background: rgba(255,255,255,0.08); color: #94A3B8; border: 1px solid rgba(255,255,255,0.15); padding: 6px 14px; border-radius: 10px; font-weight: 600; font-size: 11.5px; cursor: pointer; font-family: inherit;">Clear Cache & Reload</button>
+      </div>
     </div>
   </div>
 
@@ -185,18 +189,40 @@
         }
       }
 
+      function isFlutterMounted() {
+        return !!(document.querySelector('flutter-view') || document.querySelector('flt-glass-pane'));
+      }
+
       // Automatically remove loader on Flutter's first frame
       window.addEventListener('flutter-first-frame', removeLoader);
 
-      // Fallback: If flutter-first-frame event happened before listener or after canvas initialization
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          if (document.querySelector('flutter-view') || document.querySelector('flt-glass-pane')) {
-            removeLoader();
-          }
-        }, 1500);
+      // Continual frame checker: if Flutter view has attached, dismiss loader immediately
+      var checkInterval = setInterval(function() {
+        if (isFlutterMounted()) {
+          removeLoader();
+          clearInterval(checkInterval);
+        }
+      }, 200);
+
+      // If Flutter has not mounted within 7.5 seconds, display recovery action buttons instead of freezing on a dark screen
+      setTimeout(function() {
+        if (!loaderRemoved && !isFlutterMounted()) {
+          var status = document.getElementById('loader-status');
+          var actions = document.getElementById('loader-actions');
+          if (status) status.innerText = 'Taking longer than expected...';
+          if (actions) actions.style.display = 'flex';
+        }
+      }, 7500);
+
+      // Surface any early bootstrap or script errors directly in the loader UI
+      window.addEventListener('error', function(e) {
+        if (!loaderRemoved && !isFlutterMounted()) {
+          var status = document.getElementById('loader-status');
+          var actions = document.getElementById('loader-actions');
+          if (status) status.innerText = 'App startup paused. Tap reload to start.';
+          if (actions) actions.style.display = 'flex';
+        }
       });
-      setTimeout(removeLoader, 7000);
     })();
   </script>
 

@@ -389,7 +389,7 @@ class _EditSplitDialogState extends State<EditSplitDialog> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'SHORT NAME',
+                                  'ABBREVIATION',
                                   style: GoogleFonts.plusJakartaSans(
                                     color: subColor,
                                     fontSize: 11,
@@ -415,7 +415,7 @@ class _EditSplitDialogState extends State<EditSplitDialog> {
                                     ),
                                     decoration: InputDecoration(
                                       counterText: '',
-                                      hintText: 'e.g. PUSH',
+                                      hintText: 'e.g. UP, PUSH',
                                       hintStyle: GoogleFonts.plusJakartaSans(
                                         color: isDark ? const Color(0xFF475569) : const Color(0xFF94A3B8),
                                         fontSize: 12,

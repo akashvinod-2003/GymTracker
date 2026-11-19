@@ -563,26 +563,57 @@ class WorkoutProvider extends ChangeNotifier {
     final hasCompletedWorkout = resolvedSession != null && resolvedSession.exercises.any((e) => e.sets.isNotEmpty);
 
     if (hasCompletedWorkout) {
-      if (resolvedSession.splitShortName != null && resolvedSession.splitShortName!.trim().isNotEmpty) {
-        return resolvedSession.splitShortName!.trim().toUpperCase();
-      }
+      // 1. If session has a splitId, match with current user-configured split groups (reflects edited abbreviation immediately)
       if (resolvedSession.splitId != null && resolvedSession.splitId!.isNotEmpty) {
         final match = _splitGroups.where((g) => g.id == resolvedSession.splitId);
         if (match.isNotEmpty) return match.first.effectiveShortName;
       }
+      // 2. If session has splitName, check if it matches a split group by name (handles legacy / name-based splits)
+      if (resolvedSession.splitName != null && resolvedSession.splitName!.trim().isNotEmpty) {
+        final matchByName = _splitGroups.where((g) => g.name.toLowerCase() == resolvedSession.splitName!.trim().toLowerCase());
+        if (matchByName.isNotEmpty) return matchByName.first.effectiveShortName;
+      }
+      // 3. Fallback to explicitly stored splitShortName on the session
+      if (resolvedSession.splitShortName != null && resolvedSession.splitShortName!.trim().isNotEmpty) {
+        return resolvedSession.splitShortName!.trim().toUpperCase();
+      }
+      // 4. Derive from splitName if available
       if (resolvedSession.splitName != null && resolvedSession.splitName!.trim().isNotEmpty) {
         final name = resolvedSession.splitName!.trim();
+        final lower = name.toLowerCase();
+        if (lower.contains('upper')) return 'UP';
+        if (lower.contains('lower')) return 'LOW';
         return name.length <= 6 ? name.toUpperCase() : name.substring(0, 4).toUpperCase();
       }
+      // 5. Derive from exercise groups
       final groups = resolvedSession.exercises
           .map((e) => e.group)
           .where((g) => g.isNotEmpty && g != 'General' && g != 'Custom')
           .toList();
       if (groups.isNotEmpty) {
         final g = groups.first;
+        final matchByGroup = _splitGroups.where((s) => s.name.toLowerCase() == g.toLowerCase());
+        if (matchByGroup.isNotEmpty) return matchByGroup.first.effectiveShortName;
+        final lowerG = g.toLowerCase();
+        if (lowerG.contains('upper')) return 'UP';
+        if (lowerG.contains('lower')) return 'LOW';
         return g.length <= 5 ? g.toUpperCase() : g.substring(0, 4).toUpperCase();
       }
       return 'WOD';
+    }
+
+    // Check active draft session for today's date
+    if (dateKey == currentDateKey && _activeWorkoutDraft != null && _activeWorkoutDraft!.exercises.isNotEmpty) {
+      if (_activeWorkoutDraft!.splitId != null) {
+        final match = _splitGroups.where((g) => g.id == _activeWorkoutDraft!.splitId);
+        if (match.isNotEmpty) return match.first.effectiveShortName;
+      }
+      if (_activeWorkoutDraft!.splitShortName != null && _activeWorkoutDraft!.splitShortName!.trim().isNotEmpty) {
+        return _activeWorkoutDraft!.splitShortName!.trim().toUpperCase();
+      }
+      if (_activeWorkoutDraft!.splitName != null && _activeWorkoutDraft!.splitName!.toLowerCase().contains('upper')) {
+        return 'UP';
+      }
     }
 
     final scheduled = getScheduledSplitForDate(date);
@@ -634,10 +665,25 @@ class WorkoutProvider extends ChangeNotifier {
       _splitGroups.add(updated);
     }
     _splitGroups.sort((a, b) => a.order.compareTo(b.order));
+
+    // Also synchronize splitShortName across any sessions associated with this split
+    final updatedSessions = <WorkoutSession>[];
+    _sessions.forEach((_, session) {
+      if (session.splitId == updated.id ||
+          (session.splitName != null && session.splitName!.trim().toLowerCase() == updated.name.trim().toLowerCase())) {
+        session.splitShortName = updated.effectiveShortName;
+        session.splitName = updated.name;
+        updatedSessions.add(session);
+      }
+    });
+
     notifyListeners();
 
     if (_db != null) {
       await _db!.saveSplitGroup(updated);
+      for (final s in updatedSessions) {
+        await _db!.saveSession(s);
+      }
     }
   }
 

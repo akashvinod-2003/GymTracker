@@ -312,6 +312,102 @@ class _SplitGroupCard extends StatefulWidget {
 class _SplitGroupCardState extends State<_SplitGroupCard> {
   String? _expandedPart;
 
+  void _showEditAbbreviationDialog(BuildContext context, WorkoutProvider provider, bool isDark) {
+    final controller = TextEditingController(
+      text: widget.group.shortName.isNotEmpty ? widget.group.shortName : widget.group.effectiveShortName,
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppTheme.darkCard : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(
+              Icons.short_text_rounded,
+              color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+              size: 22,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Edit Abbreviation',
+                style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Set the abbreviation for "${widget.group.name}". This is shown on calendar day cells (e.g. UP for Upper Body, PUSH, LEG).',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12.5,
+                color: isDark ? AppTheme.darkTextSecondary : const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLength: 8,
+              textCapitalization: TextCapitalization.characters,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Abbreviation',
+                hintText: 'e.g. UP, PUSH, LEG',
+                counterText: '',
+                filled: true,
+                fillColor: isDark ? const Color(0xFF162344) : const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newAbbr = controller.text.trim().toUpperCase();
+              if (newAbbr.isNotEmpty) {
+                final updated = widget.group.copyWith(shortName: newAbbr);
+                await provider.updateSplitGroup(updated);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Updated abbreviation to "$newAbbr" for "${widget.group.name}"'),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  );
+                }
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+              foregroundColor: isDark ? Colors.black : Colors.white,
+            ),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showAddExerciseDialog(BuildContext context, String partName) {
     final controller = TextEditingController();
     final isDark = Provider.of<ThemeProvider>(context, listen: false).isDarkMode(context);
@@ -525,24 +621,31 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
           // Header
           Row(
             children: [
-              Container(
-                width: 46,
-                height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                decoration: BoxDecoration(
-                  color: pastel.bg(isDark),
+              Tooltip(
+                message: 'Tap to edit abbreviation',
+                child: InkWell(
+                  onTap: () => _showEditAbbreviationDialog(context, workoutProvider, isDark),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: pastel.border(isDark)),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  initials,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.plusJakartaSans(
-                    color: pastel.text(isDark),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                  child: Container(
+                    width: 46,
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: pastel.bg(isDark),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: pastel.border(isDark)),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      initials,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: pastel.text(isDark),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -564,21 +667,39 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF0F3635) : AppTheme.tealBg,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: isDark ? const Color(0xFF134E4A) : const Color(0xFF99F6E4),
-                            ),
-                          ),
-                          child: Text(
-                            widget.group.effectiveShortName,
-                            style: GoogleFonts.plusJakartaSans(
-                              color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w800,
+                        Tooltip(
+                          message: 'Tap to edit abbreviation',
+                          child: InkWell(
+                            onTap: () => _showEditAbbreviationDialog(context, workoutProvider, isDark),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF0F3635) : AppTheme.tealBg,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isDark ? const Color(0xFF134E4A) : const Color(0xFF99F6E4),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    widget.group.effectiveShortName,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Icon(
+                                    Icons.edit_outlined,
+                                    size: 10,
+                                    color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
