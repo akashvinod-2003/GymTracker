@@ -8,14 +8,12 @@ class CustomBottomNav extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTabSelected;
   final VoidCallback onCenterFabPressed;
-  final VoidCallback onFinishPressed;
 
   const CustomBottomNav({
     super.key,
     required this.currentIndex,
     required this.onTabSelected,
     required this.onCenterFabPressed,
-    required this.onFinishPressed,
   });
 
   @override
@@ -66,10 +64,10 @@ class CustomBottomNav extends StatelessWidget {
                     onTap: () => onTabSelected(0),
                   ),
 
-                  // Tab 1: Splits
+                  // Tab 1: Workout (current session)
                   _NavItem(
-                    icon: Icons.grid_view_rounded,
-                    label: 'Splits',
+                    icon: Icons.fitness_center_rounded,
+                    label: 'Workout',
                     isSelected: currentIndex == 1,
                     activeColor: activeColor,
                     inactiveColor: inactiveColor,
@@ -79,24 +77,24 @@ class CustomBottomNav extends StatelessWidget {
                   // Center Spacer for FAB
                   const SizedBox(width: 54),
 
-                  // Tab 2: Analytics
+                  // Tab 2: Splits
                   _NavItem(
-                    icon: Icons.pie_chart_rounded,
-                    label: 'Analytics',
+                    icon: Icons.grid_view_rounded,
+                    label: 'Splits',
                     isSelected: currentIndex == 2,
                     activeColor: activeColor,
                     inactiveColor: inactiveColor,
                     onTap: () => onTabSelected(2),
                   ),
 
-                  // Tab 3: Finish
+                  // Tab 3: Analytics
                   _NavItem(
-                    icon: Icons.check_circle_outline_rounded,
-                    label: 'Finish',
-                    isSelected: false,
+                    icon: Icons.pie_chart_rounded,
+                    label: 'Analytics',
+                    isSelected: currentIndex == 3,
                     activeColor: activeColor,
                     inactiveColor: inactiveColor,
-                    onTap: onFinishPressed,
+                    onTap: () => onTabSelected(3),
                   ),
                 ],
               ),

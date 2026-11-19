@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/workout_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/category_pills_row.dart';
-import '../../widgets/exercise_card.dart';
 import '../../widgets/hero_volume_card.dart';
 import '../../widgets/quick_entry_sheet.dart';
 import '../../widgets/daily_tab_skeleton.dart';
-import '../../widgets/last_workout_sheet.dart';
-import '../todays_workout_flow_screen.dart';
-import '../../models/split_group.dart';
 
+/// Home dashboard: today's progress at a glance. Logging lives in the
+/// Workout tab.
 class DailyTab extends StatelessWidget {
   final VoidCallback onNavigateToSplits;
+  final VoidCallback onNavigateToWorkout;
 
   const DailyTab({
     super.key,
     required this.onNavigateToSplits,
+    required this.onNavigateToWorkout,
   });
 
   void _openQuickEntry(BuildContext context) {
@@ -37,14 +38,12 @@ class DailyTab extends StatelessWidget {
 
     final session = workoutProvider.currentSession;
     final exercises = session.exercises;
-    final titleColor = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
-    final subColor = isDark ? AppTheme.darkTextSecondary : const Color(0xFF64748B);
-    final cardBg = isDark ? AppTheme.darkCard : AppTheme.lightCard;
-    final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
 
     if (workoutProvider.isLoading && exercises.isEmpty) {
       return const DailyTabSkeleton();
     }
+
+    final c = _DashColors(isDark);
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -55,83 +54,6 @@ class DailyTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Active Workout Draft Banner (Resume unfinished live session)
-              if (workoutProvider.hasActiveWorkoutDraft) ...[
-                Container(
-                  margin: const EdgeInsets.only(bottom: 14),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isDark
-                          ? [const Color(0xFF0F3635), const Color(0xFF162344)]
-                          : [const Color(0xFFCCFBF1), const Color(0xFFE0F2FE)],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: (isDark ? AppTheme.tealLight : AppTheme.tealPrimary).withValues(alpha: 0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.play_arrow_rounded,
-                          color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'ACTIVE WORKOUT IN PROGRESS',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                            Text(
-                              workoutProvider.activeWorkoutDraft?.splitName ?? 'In-Gym Session',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: titleColor,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => TodaysWorkoutFlowScreen.start(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                          foregroundColor: isDark ? Colors.black : Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: Text(
-                          'Resume',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
               // Hero Volume Card (with Live Streak Counter & IST)
               HeroVolumeCard(
                 volume: session.totalVolume,
@@ -154,290 +76,367 @@ class DailyTab extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
+              _TodaySplitCard(
+                colors: c,
+                splitName: workoutProvider.getSplitNameForDate(workoutProvider.currentDate, session: session),
+                completedSets: session.completedSets,
+                totalSets: session.totalSets,
+                inProgress: workoutProvider.hasActiveWorkoutDraft,
+                onOpen: onNavigateToWorkout,
+              ),
+              const SizedBox(height: 16),
+
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final streak = _StatTile(
+                    colors: c,
+                    icon: Icons.local_fire_department_rounded,
+                    label: 'STREAK',
+                    value: '${workoutProvider.currentStreak} d',
+                    caption: 'Best ${workoutProvider.bestStreak} d',
+                  );
+                  final weight = _weightTile(context, workoutProvider, c);
+                  if (constraints.maxWidth < 340) {
+                    return Column(children: [streak, const SizedBox(height: 12), weight]);
+                  }
+                  return IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: streak),
+                        const SizedBox(width: 12),
+                        Expanded(child: weight),
+                      ],
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+
+              _WeekVolumeStrip(
+                colors: c,
+                loaded: workoutProvider.isAnalyticsLoaded,
+                loading: workoutProvider.isLoadingAnalytics,
+                days: workoutProvider.lastSevenCalendarDayVolumes,
+                onLoad: workoutProvider.loadAnalyticsData,
+              ),
+              const SizedBox(height: 16),
+
               // Muscle Category Ring Carousel
               CategoryPillsRow(
                 muscleSetCounts: workoutProvider.muscleSetCountsForCurrentSession,
                 onManageTap: onNavigateToSplits,
               ),
-              const SizedBox(height: 20),
-
-              // Today's Exercises Section Header
-              Builder(
-                builder: (context) {
-                  final activeSplit = session.splitId != null
-                      ? workoutProvider.splitGroups.firstWhere(
-                          (g) => g.id == session.splitId,
-                          orElse: () => workoutProvider.getSplitForDate(workoutProvider.currentDate) ?? (workoutProvider.splitGroups.isNotEmpty ? workoutProvider.splitGroups.first : SplitGroup.defaultGroups.first),
-                        )
-                      : (workoutProvider.getSplitForDate(workoutProvider.currentDate) ?? (workoutProvider.splitGroups.isNotEmpty ? workoutProvider.splitGroups.first : null));
-
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            "Today's Exercises",
-                            style: GoogleFonts.plusJakartaSans(
-                              color: titleColor,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF0F3635) : AppTheme.tealBg,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isDark ? const Color(0xFF134E4A) : const Color(0xFF99F6E4),
-                              ),
-                            ),
-                            child: Text(
-                              '${exercises.length}',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                          if (activeSplit != null) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF162344) : const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: isDark ? const Color(0xFF23355C) : const Color(0xFFE2E8F0),
-                                ),
-                              ),
-                              child: Text(
-                                activeSplit.effectiveShortName,
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                      Row(
-                        children: [
-                          if (activeSplit != null) ...[
-                            InkWell(
-                              onTap: () => LastWorkoutSheet.show(context, activeSplit),
-                              borderRadius: BorderRadius.circular(20),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                                decoration: BoxDecoration(
-                                  color: cardBg,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: borderColor),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.history_rounded,
-                                      size: 15,
-                                      color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Last Workout',
-                                      style: GoogleFonts.plusJakartaSans(
-                                        color: titleColor,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                          InkWell(
-                            onTap: () => _openQuickEntry(context),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                              decoration: BoxDecoration(
-                                color: cardBg,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: borderColor),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.add_rounded,
-                                    size: 15,
-                                    color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Add Exercise',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      color: titleColor,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-
-              // Exercise Items or Empty State
-              if (exercises.isEmpty)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: borderColor),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 58,
-                        height: 58,
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F3635) : AppTheme.tealBg,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Icon(
-                          Icons.fitness_center_rounded,
-                          size: 30,
-                          color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        'No exercises logged yet',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: titleColor,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Tap the orange plus button below or quick setup to start tracking your sets today.',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.plusJakartaSans(
-                          color: subColor,
-                          fontSize: 12,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        alignment: WrapAlignment.center,
-                        children: [
-                          ElevatedButton.icon(
-                            onPressed: () => TodaysWorkoutFlowScreen.start(context),
-                            icon: const Icon(Icons.play_circle_fill_rounded, size: 17),
-                            label: const Text('Start Guided Workout'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                              foregroundColor: isDark ? Colors.black : Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              elevation: 2,
-                            ),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () => _openQuickEntry(context),
-                            icon: const Icon(Icons.bolt_rounded, size: 16),
-                            label: const Text('Quick Setup'),
-                            style: OutlinedButton.styleFrom(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                )
-              else
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isDesktop = constraints.maxWidth >= 720;
-                    if (isDesktop) {
-                      // 2-column grid layout on PC/Desktop
-                      return GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 1.15,
-                        ),
-                        itemCount: exercises.length,
-                        itemBuilder: (context, idx) {
-                          return ExerciseCard(
-                            exercise: exercises[idx],
-                            index: idx,
-                          );
-                        },
-                      );
-                    } else {
-                      // 1-column list layout on mobile
-                      return ListView.separated(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: exercises.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 12),
-                        itemBuilder: (context, idx) {
-                          return ExerciseCard(
-                            exercise: exercises[idx],
-                            index: idx,
-                          );
-                        },
-                      );
-                    }
-                  },
-                ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _weightTile(BuildContext context, WorkoutProvider wp, _DashColors c) {
+    if (!wp.isAnalyticsLoaded) {
+      return _StatTile(
+        colors: c,
+        icon: Icons.monitor_weight_rounded,
+        label: 'BODY WEIGHT',
+        value: wp.isLoadingAnalytics ? '…' : '—',
+        caption: wp.isLoadingAnalytics ? 'Loading' : 'Tap to load',
+        onTap: wp.isLoadingAnalytics ? null : wp.loadAnalyticsData,
+      );
+    }
+    final current = wp.currentWeightKg;
+    final change = wp.totalWeightChangeKg;
+    return _StatTile(
+      colors: c,
+      icon: Icons.monitor_weight_rounded,
+      label: 'BODY WEIGHT',
+      value: current == null ? '—' : '${current.toStringAsFixed(1)} kg',
+      caption: change == null
+          ? (current == null ? 'No check-ins yet' : 'First check-in')
+          : '${change >= 0 ? '+' : ''}${change.toStringAsFixed(1)} kg since start',
+    );
+  }
+}
+
+class _DashColors {
+  final bool isDark;
+  _DashColors(this.isDark);
+
+  Color get title => isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+  Color get sub => isDark ? AppTheme.darkTextSecondary : const Color(0xFF64748B);
+  Color get card => isDark ? AppTheme.darkCard : AppTheme.lightCard;
+  Color get border => isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
+  Color get accent => isDark ? AppTheme.tealLight : AppTheme.tealPrimary;
+  Color get accentBg => isDark ? const Color(0xFF0F3635) : AppTheme.tealBg;
+
+  BoxDecoration get cardDecoration => BoxDecoration(
+        color: card,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      );
+
+  TextStyle get eyebrow => GoogleFonts.plusJakartaSans(
+        color: sub,
+        fontSize: 10,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.8,
+      );
+}
+
+class _TodaySplitCard extends StatelessWidget {
+  final _DashColors colors;
+  final String splitName;
+  final int completedSets;
+  final int totalSets;
+  final bool inProgress;
+  final VoidCallback onOpen;
+
+  const _TodaySplitCard({
+    required this.colors,
+    required this.splitName,
+    required this.completedSets,
+    required this.totalSets,
+    required this.inProgress,
+    required this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = colors;
+    final progress = totalSets == 0 ? 0.0 : completedSets / totalSets;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: c.cardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(inProgress ? "TODAY'S SPLIT · IN PROGRESS" : "TODAY'S SPLIT", style: c.eyebrow),
+                    const SizedBox(height: 2),
+                    Text(
+                      splitName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: c.title,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton(
+                onPressed: onOpen,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: c.accent,
+                  foregroundColor: c.isDark ? Colors.black : Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  inProgress ? 'Resume' : 'Go to workout',
+                  style: GoogleFonts.plusJakartaSans(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: c.accentBg,
+              valueColor: AlwaysStoppedAnimation(c.accent),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            totalSets == 0 ? 'No sets planned yet' : '$completedSets/$totalSets sets done',
+            style: GoogleFonts.plusJakartaSans(color: c.sub, fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final _DashColors colors;
+  final IconData icon;
+  final String label;
+  final String value;
+  final String caption;
+  final VoidCallback? onTap;
+
+  const _StatTile({
+    required this.colors,
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.caption,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = colors;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: c.cardDecoration,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, size: 16, color: c.accent),
+                  const SizedBox(width: 6),
+                  Flexible(
+                    child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: c.eyebrow),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.plusJakartaSans(
+                  color: c.title,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                caption,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.plusJakartaSans(color: c.sub, fontSize: 11, fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _WeekVolumeStrip extends StatelessWidget {
+  final _DashColors colors;
+  final bool loaded;
+  final bool loading;
+  final List<MapEntry<DateTime, double>> days;
+  final Future<void> Function() onLoad;
+
+  const _WeekVolumeStrip({
+    required this.colors,
+    required this.loaded,
+    required this.loading,
+    required this.days,
+    required this.onLoad,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = colors;
+    final maxVol = days.fold<double>(0, (m, e) => e.value > m ? e.value : m);
+    final total = days.fold<double>(0, (s, e) => s + e.value);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: c.cardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(child: Text('LAST 7 DAYS', style: c.eyebrow)),
+              if (loaded)
+                Text(
+                  '${NumberFormat.compact().format(total)} kg',
+                  style: GoogleFonts.plusJakartaSans(color: c.title, fontSize: 13, fontWeight: FontWeight.w800),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (!loaded)
+            Center(
+              child: TextButton.icon(
+                onPressed: loading ? null : onLoad,
+                icon: loading
+                    ? SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: c.accent),
+                      )
+                    : Icon(Icons.bar_chart_rounded, size: 18, color: c.accent),
+                label: Text(
+                  loading ? 'Loading history' : 'Load weekly volume',
+                  style: GoogleFonts.plusJakartaSans(color: c.accent, fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              height: 92,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (var i = 0; i < days.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 6),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: FractionallySizedBox(
+                                heightFactor: maxVol == 0 ? 0.04 : (days[i].value / maxVol).clamp(0.04, 1.0),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: i == days.length - 1 ? c.accent : c.accent.withValues(alpha: 0.35),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            DateFormat('E').format(days[i].key).substring(0, 1),
+                            style: GoogleFonts.plusJakartaSans(color: c.sub, fontSize: 10, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -13,6 +13,7 @@ import 'profile_drawer.dart';
 import 'tabs/analytics_tab.dart';
 import 'tabs/daily_tab.dart';
 import 'tabs/splits_tab.dart';
+import 'tabs/workout_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -27,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   void _onTabSelected(int index) {
-    if (index == 2 && !_hasLoadedAnalytics) {
+    if (index == 3 && !_hasLoadedAnalytics) {
       _hasLoadedAnalytics = true;
     }
     setState(() {
@@ -271,12 +272,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     index: _currentTabIndex,
                     children: [
                       DailyTab(
-                        onNavigateToSplits: () => _onTabSelected(1),
+                        onNavigateToSplits: () => _onTabSelected(2),
+                        onNavigateToWorkout: () => _onTabSelected(1),
                       ),
+                      WorkoutTab(onFinish: _triggerFinishSession),
                       const SplitsTab(),
                       _hasLoadedAnalytics
                           ? AnalyticsTab(
-                              onSelectSession: () => _onTabSelected(0),
+                              onSelectSession: () => _onTabSelected(1),
                             )
                           : const SizedBox.shrink(),
                     ],
@@ -291,7 +294,6 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _currentTabIndex,
         onTabSelected: _onTabSelected,
         onCenterFabPressed: _openQuickEntry,
-        onFinishPressed: _triggerFinishSession,
       ),
     );
   }
