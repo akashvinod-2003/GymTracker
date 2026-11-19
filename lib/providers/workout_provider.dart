@@ -436,16 +436,50 @@ class WorkoutProvider extends ChangeNotifier {
   // SPLITS, BODY PARTS & EXERCISES HIERARCHY
   // ----------------------------------------------------
 
+  /// Resolves the relevant SplitGroup for a given date:
+  /// 1. If exercises exist for that session, matches the split by exercise group.
+  /// 2. If no workout yet or scheduled, matches the split by day-of-week assignment.
+  SplitGroup? getSplitForDate(DateTime date) {
+    final dateKey = DateFormat('yyyy-MM-dd').format(date);
+    final session = _sessions[dateKey];
+
+    // Priority 1: Check logged exercises in the session
+    if (session != null && session.exercises.isNotEmpty) {
+      for (final ex in session.exercises) {
+        if (ex.group.isNotEmpty && ex.group != 'General' && ex.group != 'Custom') {
+          final match = _splitGroups.where((g) => g.name.toLowerCase() == ex.group.toLowerCase());
+          if (match.isNotEmpty) return match.first;
+        }
+      }
+    }
+
+    // Priority 2: Check assigned days of week (Mon..Sun)
+    for (final group in _splitGroups) {
+      if (group.isScheduledForDateTime(date)) {
+        return group;
+      }
+    }
+
+    return null;
+  }
+
   Future<void> addSplitGroup({
     required String name,
     required String desc,
     Map<String, List<String>>? parts,
+    List<String>? days,
+    int? defaultSets,
+    int? defaultReps,
   }) async {
     final newGroup = SplitGroup(
-      id: 'grp-${DateTime.now().millisecondsSinceEpoch}',
+      id: 'grp-${DateTime.now().millisecondsSinceEpoch}-${_uuid.v4().substring(0, 4)}',
       name: name,
       desc: desc,
       parts: parts ?? {},
+      days: days ?? [],
+      defaultSets: defaultSets ?? 3,
+      defaultReps: defaultReps ?? 10,
+      order: _splitGroups.length,
     );
 
     _splitGroups.add(newGroup);
@@ -454,6 +488,75 @@ class WorkoutProvider extends ChangeNotifier {
     if (_db != null) {
       await _db!.saveSplitGroup(newGroup);
     }
+  }
+
+  /// Updates an existing split group in-place with immediate UI reactivity & persistence.
+  Future<void> updateSplitGroup(SplitGroup updated) async {
+    final idx = _splitGroups.indexWhere((g) => g.id == updated.id);
+    if (idx != -1) {
+      _splitGroups[idx] = updated;
+    } else {
+      _splitGroups.add(updated);
+    }
+    _splitGroups.sort((a, b) => a.order.compareTo(b.order));
+    notifyListeners();
+
+    if (_db != null) {
+      await _db!.saveSplitGroup(updated);
+    }
+  }
+
+  /// Inserts a duplicated or new split group directly ABOVE the specified target split.
+  Future<void> addSplitAbove({
+    required String targetGroupId,
+    required SplitGroup newGroup,
+  }) async {
+    final targetIdx = _splitGroups.indexWhere((g) => g.id == targetGroupId);
+    final insertIdx = targetIdx >= 0 ? targetIdx : 0;
+
+    _splitGroups.insert(insertIdx, newGroup);
+
+    // Re-index all orders sequentially
+    for (int i = 0; i < _splitGroups.length; i++) {
+      _splitGroups[i] = _splitGroups[i].copyWith(order: i);
+    }
+
+    notifyListeners();
+
+    if (_db != null) {
+      await _db!.saveAllSplitGroups(_splitGroups);
+    }
+  }
+
+  /// Duplicates an existing workout split including all its days, parts, exercises, sets & reps,
+  /// generates a brand-new unique ID, and inserts it directly above the original split.
+  Future<SplitGroup?> duplicateSplitAbove(String targetGroupId, {String? customName}) async {
+    final targetIdx = _splitGroups.indexWhere((g) => g.id == targetGroupId);
+    if (targetIdx == -1) return null;
+
+    final target = _splitGroups[targetIdx];
+    final newId = 'grp-${DateTime.now().millisecondsSinceEpoch}-${_uuid.v4().substring(0, 4)}';
+    final newName = customName ?? '${target.name} (Copy)';
+
+    // Deep copy parts and exercise lists
+    final clonedParts = <String, List<String>>{};
+    target.parts.forEach((part, exercises) {
+      clonedParts[part] = List<String>.from(exercises);
+    });
+
+    final duplicated = SplitGroup(
+      id: newId,
+      name: newName,
+      desc: target.desc,
+      parts: clonedParts,
+      days: List<String>.from(target.days),
+      defaultSets: target.defaultSets,
+      defaultReps: target.defaultReps,
+      order: targetIdx,
+    );
+
+    await addSplitAbove(targetGroupId: targetGroupId, newGroup: duplicated);
+    return duplicated;
   }
 
   Future<void> deleteSplitGroup(String groupId) async {

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/workout_session.dart';
 import '../providers/theme_provider.dart';
+import '../providers/workout_provider.dart';
 import '../services/streak_service.dart';
 import '../theme/app_theme.dart';
 
@@ -134,6 +135,139 @@ class _WorkoutCalendarCardState extends State<WorkoutCalendarCard> {
                 ],
               ),
             ],
+          ),
+          const SizedBox(height: 14),
+
+          // Integrated Split Information for Selected Date
+          Builder(
+            builder: (context) {
+              final workoutProvider = Provider.of<WorkoutProvider>(context);
+              final selectedDate = DateTime.tryParse(widget.selectedDateKey) ?? StreakService.nowIST;
+              final selectedFormattedDate = DateFormat('EEE, MMM d').format(selectedDate);
+
+              final session = widget.sessions[widget.selectedDateKey];
+              final hasWorkout = session != null && session.exercises.any((e) => e.sets.isNotEmpty);
+              final split = workoutProvider.getSplitForDate(selectedDate);
+              final isSunday = selectedDate.weekday == DateTime.sunday;
+
+              final String splitTitle;
+              final String splitSubtitle;
+              final String badgeLabel;
+              final Color badgeColor;
+              final IconData badgeIcon;
+
+              if (hasWorkout) {
+                final groups = session.exercises
+                    .map((e) => e.group)
+                    .where((g) => g.isNotEmpty && g != 'General' && g != 'Custom')
+                    .toSet()
+                    .toList();
+                splitTitle = groups.isNotEmpty ? groups.join(' & ') : (split?.name ?? 'Logged Session');
+                splitSubtitle = '${session.exercises.length} exercises · ${session.completedSets} sets';
+                badgeLabel = 'Completed';
+                badgeColor = const Color(0xFF10B981);
+                badgeIcon = Icons.fitness_center_rounded;
+              } else if (split != null) {
+                splitTitle = split.name;
+                splitSubtitle = split.partNames.isNotEmpty
+                    ? 'Scheduled: ${split.partNames.join(', ')}'
+                    : '${split.defaultSets} sets × ${split.defaultReps} reps target';
+                badgeLabel = 'Scheduled Split';
+                badgeColor = isDark ? AppTheme.tealLight : AppTheme.tealPrimary;
+                badgeIcon = Icons.event_available_rounded;
+              } else if (isSunday) {
+                splitTitle = 'Rest & Recovery Day';
+                splitSubtitle = 'Sunday rest preserved — streak protected';
+                badgeLabel = 'Rest Day';
+                badgeColor = const Color(0xFF818CF8);
+                badgeIcon = Icons.self_improvement_rounded;
+              } else {
+                splitTitle = 'Rest / Off Day';
+                splitSubtitle = 'No workouts logged for this date';
+                badgeLabel = 'Off Day';
+                badgeColor = const Color(0xFF94A3B8);
+                badgeIcon = Icons.pause_circle_outline_rounded;
+              }
+
+              return Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF162344) : const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: hasWorkout
+                        ? (isDark ? const Color(0xFF134E4A) : const Color(0xFF99F6E4))
+                        : (isDark ? const Color(0xFF23355C) : const Color(0xFFE2E8F0)),
+                    width: hasWorkout ? 1.5 : 1,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: badgeColor.withValues(alpha: isDark ? 0.22 : 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(badgeIcon, color: badgeColor, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  splitTitle,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: titleColor,
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: badgeColor.withValues(alpha: isDark ? 0.25 : 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  badgeLabel,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: badgeColor,
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$selectedFormattedDate · $splitSubtitle',
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: subColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
           const SizedBox(height: 16),
 

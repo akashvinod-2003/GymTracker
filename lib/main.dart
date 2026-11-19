@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
+import 'providers/pwa_update_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/workout_provider.dart';
 import 'screens/auth_screen.dart';
@@ -35,9 +36,9 @@ void main() async {
 }
 
 class GymTrackerApp extends StatelessWidget {
-  final SharedPreferences prefs;
+  final SharedPreferences? prefs;
 
-  const GymTrackerApp({super.key, required this.prefs});
+  const GymTrackerApp({super.key, this.prefs});
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +46,9 @@ class GymTrackerApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider<ThemeProvider>(
           create: (_) => ThemeProvider(prefs),
+        ),
+        ChangeNotifierProvider<PwaUpdateProvider>(
+          create: (_) => PwaUpdateProvider(),
         ),
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider(),

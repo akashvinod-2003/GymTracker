@@ -6,6 +6,7 @@ import 'package:gym_tracker/services/streak_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/motion.dart';
 import '../widgets/custom_bottom_nav.dart';
+import 'package:gym_tracker/widgets/update_prompt_button.dart';
 import 'profile_drawer.dart';
 import 'tabs/analytics_tab.dart';
 import 'tabs/daily_tab.dart';
@@ -180,6 +181,8 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
+          const UpdatePromptButton(compact: true),
+          if (trailing != null) const SizedBox(width: 6),
           ?trailing,
         ],
       ),

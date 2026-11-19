@@ -8,6 +8,7 @@ import '../theme/app_theme.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/custom_bottom_nav.dart';
 import '../widgets/quick_entry_sheet.dart';
+import '../widgets/update_prompt_button.dart';
 import 'profile_drawer.dart';
 import 'tabs/analytics_tab.dart';
 import 'tabs/daily_tab.dart';
@@ -170,6 +171,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       ),
+
+                      // Update Available Button (only shows when newer version exists)
+                      const UpdatePromptButton(compact: true),
+                      const SizedBox(width: 8),
 
                       // Streak Counter in Header
                       Container(

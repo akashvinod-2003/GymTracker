@@ -15,12 +15,24 @@ class AddSplitDialog extends StatefulWidget {
 class _AddSplitDialogState extends State<AddSplitDialog> {
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
+  final List<String> _selectedDays = [];
+  final List<String> _allDays = const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   @override
   void dispose() {
     _nameController.dispose();
     _descController.dispose();
     super.dispose();
+  }
+
+  void _toggleDay(String day) {
+    setState(() {
+      if (_selectedDays.contains(day)) {
+        _selectedDays.remove(day);
+      } else {
+        _selectedDays.add(day);
+      }
+    });
   }
 
   @override
@@ -147,6 +159,55 @@ class _AddSplitDialogState extends State<AddSplitDialog> {
                 ),
               ),
             ),
+            const SizedBox(height: 14),
+
+            // Workout Days
+            Text(
+              'SCHEDULED DAYS (OPTIONAL)',
+              style: GoogleFonts.plusJakartaSans(
+                color: subColor,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _allDays.map((day) {
+                final isSelected = _selectedDays.contains(day);
+                return InkWell(
+                  onTap: () => _toggleDay(day),
+                  borderRadius: BorderRadius.circular(16),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? (isDark ? const Color(0xFF0F3635) : AppTheme.tealBg)
+                          : inputBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected
+                            ? (isDark ? AppTheme.tealLight : AppTheme.tealPrimary)
+                            : borderColor,
+                      ),
+                    ),
+                    child: Text(
+                      day,
+                      style: GoogleFonts.plusJakartaSans(
+                        color: isSelected
+                            ? (isDark ? AppTheme.tealLight : AppTheme.tealPrimary)
+                            : subColor,
+                        fontSize: 11,
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
             const SizedBox(height: 20),
 
             // Actions
@@ -172,6 +233,7 @@ class _AddSplitDialogState extends State<AddSplitDialog> {
                     workoutProvider.addSplitGroup(
                       name: name,
                       desc: _descController.text.trim(),
+                      days: _selectedDays,
                     );
                     Navigator.pop(context);
 

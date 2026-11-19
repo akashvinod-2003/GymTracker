@@ -28,10 +28,9 @@ const PRECACHE_ASSETS = [
   '/icons/Icon-maskable-512.png'
 ];
 
-// Install: Immediately skip waiting so new service worker activates without closing tabs
+// Install: Cache static shell assets. DO NOT skip waiting automatically — wait for manual user update trigger.
 self.addEventListener('install', (event) => {
-  console.log('[PulseFit SW] Install event triggered. Skipping waiting...');
-  self.skipWaiting();
+  console.log('[PulseFit SW] Install event triggered. Caching assets and waiting for user prompt...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(PRECACHE_ASSETS).catch((err) => {

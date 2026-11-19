@@ -1,6 +1,7 @@
 /**
- * PulseFit PWA Automatic Update & Cache Invalidation Manager
- * Ensures users automatically receive newly deployed builds without manually clearing cache.
+ * PulseFit PWA Manual Update Manager
+ * Detects newly deployed application versions and notifies the app without auto-reloading.
+ * The application is only updated and refreshed when the user explicitly triggers "Update App".
  */
 (function () {
   'use strict';
@@ -10,102 +11,90 @@
     return;
   }
 
-  let isRefreshing = false;
+  let swRegistration = null;
+  let waitingWorker = null;
+  let updateAvailable = false;
+  let isUpdating = false;
   let initialVersionData = null;
   let initialBundleHash = null;
 
-  // Show a smooth toast notification before refreshing
-  function showUpdateNotification(message) {
-    if (document.getElementById('pwa-update-toast')) return;
+  window.__PWA_UPDATE_AVAILABLE__ = false;
 
-    const toast = document.createElement('div');
-    toast.id = 'pwa-update-toast';
-    toast.innerHTML = `
-      <div style="
-        position: fixed;
-        bottom: 28px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: #0B1329;
-        color: #F8FAFC;
-        border: 1px solid #0D9488;
-        box-shadow: 0 10px 25px -5px rgba(13, 148, 136, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.6);
-        padding: 12px 22px;
-        border-radius: 9999px;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        font-size: 13.5px;
-        font-weight: 600;
-        letter-spacing: 0.3px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        z-index: 999999;
-        animation: pwaSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-        pointer-events: none;
-      ">
-        <svg style="width: 18px; height: 18px; color: #14B8A6; animation: pwaSpin 0.9s linear infinite; flex-shrink: 0;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        <span>${message || 'New update found! Refreshing PulseFit...'}</span>
-      </div>
-      <style>
-        @keyframes pwaSlideUp {
-          from { opacity: 0; transform: translate(-50%, 20px) scale(0.95); }
-          to { opacity: 1; transform: translate(-50%, 0) scale(1); }
-        }
-        @keyframes pwaSpin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      </style>
-    `;
-    document.body.appendChild(toast);
+  function markUpdateAvailable(reason, worker) {
+    if (updateAvailable) return;
+    updateAvailable = true;
+    window.__PWA_UPDATE_AVAILABLE__ = true;
+    if (worker) {
+      waitingWorker = worker;
+    }
+
+    console.log(`[PWA Update] Update available detected (${reason}). Waiting for user confirmation.`);
+    try {
+      window.dispatchEvent(new CustomEvent('pwaUpdateAvailable', {
+        detail: { reason: reason }
+      }));
+    } catch (e) {
+      console.warn('[PWA Update] Failed to dispatch update event:', e);
+    }
   }
 
-  // Reload the application cleanly
-  async function triggerReload(reason) {
-    if (isRefreshing) return;
-    isRefreshing = true;
-    console.log(`[PWA Update] Auto-refresh triggered: ${reason}`);
+  // Applies the pending update manually upon user request
+  async function applyUpdate() {
+    if (isUpdating) return;
+    isUpdating = true;
+    console.log('[PWA Update] Manual update initiated by user...');
 
-    showUpdateNotification('Updating PulseFit to latest version...');
+    // Prevent reload loops (allow at most 1 reload per 10 seconds)
+    try {
+      const lastReload = parseInt(sessionStorage.getItem('pwa_last_update_ts') || '0', 10);
+      if (Date.now() - lastReload < 10000) {
+        console.warn('[PWA Update] Throttling rapid reload requests.');
+        window.location.reload();
+        return;
+      }
+      sessionStorage.setItem('pwa_last_update_ts', String(Date.now()));
+    } catch (_) {}
 
-    // Purge browser CacheStorage
+    // 1. Activate waiting service worker
+    try {
+      if (waitingWorker) {
+        waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+      } else if (swRegistration && swRegistration.waiting) {
+        swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    } catch (e) {
+      console.warn('[PWA Update] Error sending SKIP_WAITING to service worker:', e);
+    }
+
+    // 2. Clear browser CacheStorage to ensure fresh bundles
     try {
       if ('caches' in window) {
         const keys = await caches.keys();
         await Promise.all(keys.map(k => caches.delete(k)));
       }
     } catch (e) {
-      console.warn('[PWA Update] Cache purge error:', e);
+      console.warn('[PWA Update] Cache deletion error:', e);
     }
 
+    // 3. Smooth page refresh
     setTimeout(() => {
       window.location.reload();
-    }, 450);
+    }, 350);
   }
 
-  // 1. Unregister deprecated flutter_service_worker.js if present from previous builds
+  // Unregister deprecated flutter_service_worker.js if present
   navigator.serviceWorker.getRegistrations().then((registrations) => {
     for (const reg of registrations) {
       const scriptURL = (reg.active && reg.active.scriptURL) ||
                         (reg.waiting && reg.waiting.scriptURL) ||
                         (reg.installing && reg.installing.scriptURL) || '';
       if (scriptURL.includes('flutter_service_worker.js')) {
-        console.log('[PWA Update] Unregistering obsolete Flutter service worker:', scriptURL);
         reg.unregister();
       }
     }
   });
 
-  // 2. Controller change event: when a new SW takes over, reload the app!
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    triggerReload('New Service Worker activated (controllerchange)');
-  });
-
-  // 3. Register our custom PWA Service Worker
-  let swRegistration = null;
-
+  // Register our custom PWA Service Worker
   function registerServiceWorker() {
     const buildHash = window.__PULSEFIT_BUILD_HASH__ || '';
     const swPath = 'sw.js' + (buildHash ? '?v=' + encodeURIComponent(buildHash) : '');
@@ -114,42 +103,37 @@
       .register(swPath, { updateViaCache: 'none' })
       .then((reg) => {
         swRegistration = reg;
-        console.log('[PWA Update] Service worker registered successfully. Scope:', reg.scope);
+        console.log('[PWA Update] Service worker registered. Scope:', reg.scope);
 
-        // Immediate update check on startup
-        reg.update();
+        // Check if a worker is already waiting in background
+        if (reg.waiting) {
+          markUpdateAvailable('Existing waiting worker found', reg.waiting);
+        }
 
-        // Listen for updates found
+        // Check for updates
+        reg.update().catch(() => {});
+
+        // Listen for new worker installed
         reg.addEventListener('updatefound', () => {
           const installingWorker = reg.installing;
           if (!installingWorker) return;
 
           installingWorker.addEventListener('statechange', () => {
-            if (installingWorker.state === 'installed') {
-              if (navigator.serviceWorker.controller) {
-                // An older version is currently controlling, and a new one just installed
-                console.log('[PWA Update] New service worker installed! Activating immediately...');
-                installingWorker.postMessage({ type: 'SKIP_WAITING' });
-                triggerReload('New service worker installed');
-              }
+            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              markUpdateAvailable('New service worker installed in background', installingWorker);
             }
           });
         });
 
-        // Periodic update check every 3 minutes
+        // Periodic background update check every 5 minutes
         setInterval(() => {
-          reg.update();
-        }, 3 * 60 * 1000);
+          reg.update().catch(() => {});
+        }, 5 * 60 * 1000);
 
-        // Check for updates when tab gains focus or user returns to app
-        window.addEventListener('focus', () => {
-          reg.update();
-          checkServerDeployment();
-        });
-
+        // Check when tab regains visibility
         document.addEventListener('visibilitychange', () => {
           if (document.visibilityState === 'visible') {
-            reg.update();
+            reg.update().catch(() => {});
             checkServerDeployment();
           }
         });
@@ -159,9 +143,9 @@
       });
   }
 
-  // 4. Server-Side Deployment Polling (Checks version.json and main.dart.js ETag)
-  // Ensures that even if the SW itself didn't change, recompiled Flutter builds are caught immediately!
+  // Server-Side Deployment Check (Checks version.json and main.dart bundle)
   async function checkServerDeployment() {
+    if (updateAvailable) return;
     try {
       // Check 1: version.json
       const vRes = await fetch('version.json?_t=' + Date.now(), { cache: 'no-store' });
@@ -171,13 +155,12 @@
         if (!initialVersionData) {
           initialVersionData = vKey;
         } else if (initialVersionData !== vKey) {
-          console.log(`[PWA Update] Version changed on server: ${initialVersionData} -> ${vKey}`);
-          triggerReload('version.json updated');
+          markUpdateAvailable(`version.json updated (${initialVersionData} -> ${vKey})`, null);
           return;
         }
       }
 
-      // Check 2: main.dart.js ETag or Last-Modified
+      // Check 2: main.dart bundle HEAD check
       const headRes = await fetch('main.dart.js?_t=' + Date.now(), { method: 'HEAD', cache: 'no-store' });
       if (headRes.ok) {
         const etag = headRes.headers.get('ETag') ||
@@ -187,38 +170,31 @@
           if (!initialBundleHash) {
             initialBundleHash = etag;
           } else if (initialBundleHash !== etag) {
-            console.log('[PWA Update] main.dart.js changed on server! Old:', initialBundleHash, 'New:', etag);
-            triggerReload('main.dart.js bundle updated');
+            markUpdateAvailable('main bundle changed on server', null);
             return;
           }
         }
       }
-    } catch (e) {
-      // Offline or network error - ignored
+    } catch (_) {
+      // Offline - ignored
     }
   }
 
-  // Start server check: initial after 3 seconds, then every 90 seconds
-  setTimeout(checkServerDeployment, 3000);
-  setInterval(checkServerDeployment, 90 * 1000);
+  // Periodic server check: initial after 4s, then every 2 minutes
+  setTimeout(checkServerDeployment, 4000);
+  setInterval(checkServerDeployment, 120 * 1000);
 
-  // Expose global debug API
+  // Global API exposed to Flutter Web
   window.pwaUpdater = {
+    isUpdateAvailable: () => updateAvailable || !!window.__PWA_UPDATE_AVAILABLE__,
+    isUpdating: () => isUpdating,
+    applyUpdate: applyUpdate,
     checkForUpdate: () => {
-      if (swRegistration) swRegistration.update();
+      if (swRegistration) swRegistration.update().catch(() => {});
       checkServerDeployment();
-    },
-    forceReload: () => triggerReload('Manual trigger'),
-    clearCacheAndReload: async () => {
-      if (window.caches) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map(k => caches.delete(k)));
-      }
-      window.location.reload();
     }
   };
 
-  // Run registration when page loads
   if (document.readyState === 'complete') {
     registerServiceWorker();
   } else {

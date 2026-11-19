@@ -8,6 +8,7 @@ import '../providers/workout_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/log_weight_dialog.dart';
+import '../widgets/update_prompt_button.dart';
 
 class ProfileDrawer extends StatelessWidget {
   const ProfileDrawer({super.key});
@@ -353,6 +354,8 @@ class ProfileDrawer extends StatelessWidget {
                 ],
               ),
             ),
+
+            const UpdatePromptButton(),
 
             const Spacer(),
 

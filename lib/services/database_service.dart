@@ -68,6 +68,7 @@ class DatabaseService {
               groups.add(SplitGroup.fromMap(data));
             }
           }
+          groups.sort((a, b) => a.order.compareTo(b.order));
           if (groups.isNotEmpty) {
             _saveSplitsLocally(groups);
           }
@@ -98,6 +99,7 @@ class DatabaseService {
               groups.add(SplitGroup.fromMap(data));
             }
           }
+          groups.sort((a, b) => a.order.compareTo(b.order));
           await _saveSplitsLocally(groups);
           return groups;
         }
@@ -106,7 +108,9 @@ class DatabaseService {
       }
     }
 
-    return await _loadSplitsLocally();
+    final local = await _loadSplitsLocally();
+    local.sort((a, b) => a.order.compareTo(b.order));
+    return local;
   }
 
   Future<void> saveSplitGroup(SplitGroup group) async {
@@ -129,6 +133,30 @@ class DatabaseService {
             .set(group.toMap(), SetOptions(merge: true));
       } catch (e) {
         debugPrint("Error saving split group to Firestore: $e");
+      }
+    }
+  }
+
+  Future<void> saveAllSplitGroups(List<SplitGroup> groups) async {
+    for (int i = 0; i < groups.length; i++) {
+      groups[i].order = i;
+    }
+    await _saveSplitsLocally(groups);
+
+    if (_isFirestoreAvailable && _firestore != null && userId.isNotEmpty) {
+      try {
+        final batch = _firestore!.batch();
+        for (var group in groups) {
+          final docRef = _firestore!
+              .collection('users')
+              .doc(userId)
+              .collection('splits')
+              .doc(group.id);
+          batch.set(docRef, group.toMap(), SetOptions(merge: true));
+        }
+        await batch.commit();
+      } catch (e) {
+        debugPrint("Error saving all split groups to Firestore: $e");
       }
     }
   }

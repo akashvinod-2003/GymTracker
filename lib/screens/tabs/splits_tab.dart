@@ -7,6 +7,7 @@ import '../../providers/workout_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/add_muscle_dialog.dart';
 import '../../widgets/add_split_dialog.dart';
+import '../../widgets/edit_split_dialog.dart';
 
 class SplitsTab extends StatelessWidget {
   const SplitsTab({super.key});
@@ -363,6 +364,98 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
     );
   }
 
+  void _promptDuplicateAbove(BuildContext context, WorkoutProvider provider, bool isDark) {
+    final nameController = TextEditingController(text: '${widget.group.name} (Copy)');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppTheme.darkCard : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(
+              Icons.arrow_upward_rounded,
+              color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Add Split Above',
+              style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Duplicates all days, body parts, exercises, sets and reps, and inserts the new split directly above "${widget.group.name}".',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 12.5,
+                color: isDark ? AppTheme.darkTextSecondary : const Color(0xFF64748B),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'NEW SPLIT NAME',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                color: isDark ? AppTheme.darkTextSecondary : const Color(0xFF64748B),
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: isDark ? const Color(0xFF162344) : const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newName = nameController.text.trim();
+              if (newName.isEmpty) return;
+              Navigator.pop(ctx);
+              await provider.duplicateSplitAbove(widget.group.id, customName: newName);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Inserted "$newName" directly above "${widget.group.name}"'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+              foregroundColor: isDark ? Colors.black : Colors.white,
+            ),
+            child: const Text('Add Above'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Provider.of<ThemeProvider>(context).isDarkMode(context);
@@ -436,51 +529,171 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                   ],
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                color: isDark ? Colors.redAccent.shade100 : Colors.red.shade400,
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      backgroundColor: isDark ? AppTheme.darkCard : Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      title: Text(
-                        'Delete ${widget.group.name}?',
-                        style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800),
-                      ),
-                      content: Text(
-                        'This will delete the split group and all exercise movements under it.',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          color: subColor,
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Cancel'),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            workoutProvider.deleteSplitGroup(widget.group.id);
-                            Navigator.pop(ctx);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red.shade600,
-                            foregroundColor: Colors.white,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Add Split Above (Duplicate Split)
+                  Tooltip(
+                    message: 'Add Split Above',
+                    child: InkWell(
+                      onTap: () => _promptDuplicateAbove(context, workoutProvider, isDark),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F3635) : AppTheme.tealBg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF134E4A) : const Color(0xFF99F6E4),
                           ),
-                          child: const Text('Delete'),
                         ),
-                      ],
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.arrow_upward_rounded,
+                              size: 14,
+                              color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Add Above',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  );
-                },
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                  ),
+                  const SizedBox(width: 6),
+                  // Edit Split
+                  Tooltip(
+                    message: 'Edit Split',
+                    child: IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 19),
+                      color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => EditSplitDialog(splitGroup: widget.group),
+                        );
+                      },
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  // Delete Split
+                  Tooltip(
+                    message: 'Delete Split',
+                    child: IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded, size: 19),
+                      color: isDark ? Colors.redAccent.shade100 : Colors.red.shade400,
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            backgroundColor: isDark ? AppTheme.darkCard : Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                            title: Text(
+                              'Delete ${widget.group.name}?',
+                              style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800),
+                            ),
+                            content: Text(
+                              'This will delete the split group and all exercise movements under it.',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                color: subColor,
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('Cancel'),
+                              ),
+                              ElevatedButton(
+                                onPressed: () {
+                                  workoutProvider.deleteSplitGroup(widget.group.id);
+                                  Navigator.pop(ctx);
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red.shade600,
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
+
+          // Scheduled Days & Target Sets/Reps Badges
+          if (widget.group.days.isNotEmpty || widget.group.defaultSets > 0) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                if (widget.group.days.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF0F3635) : AppTheme.tealBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF134E4A) : const Color(0xFF99F6E4),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.calendar_today_rounded,
+                          size: 11,
+                          color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          widget.group.days.join(', '),
+                          style: GoogleFonts.plusJakartaSans(
+                            color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1F2937) : const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${widget.group.defaultSets} sets × ${widget.group.defaultReps} reps',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: subColor,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
 
           if (widget.group.desc.isNotEmpty) ...[
             const SizedBox(height: 8),
