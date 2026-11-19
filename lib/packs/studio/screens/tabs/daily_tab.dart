@@ -6,6 +6,9 @@ import '../../theme/motion.dart';
 import '../../widgets/exercise_card.dart';
 import '../../widgets/hero_volume_card.dart';
 import '../../widgets/quick_entry_sheet.dart';
+import 'package:gym_tracker/models/split_group.dart';
+import 'package:gym_tracker/screens/todays_workout_flow_screen.dart';
+import 'package:gym_tracker/widgets/last_workout_sheet.dart';
 import 'package:gym_tracker/widgets/daily_tab_skeleton.dart';
 
 /// Today: one job — log the sets in front of you, one-handed, between lifts.
@@ -48,6 +51,12 @@ class DailyTab extends StatelessWidget {
     final muscles = wp.muscleSetCountsForCurrentSession;
     final muscleOrder = muscles.keys.toList();
     final bottomInset = MediaQuery.paddingOf(context).bottom;
+    final activeSplit = session.splitId != null
+        ? wp.splitGroups.firstWhere(
+            (g) => g.id == session.splitId,
+            orElse: () => wp.getSplitForDate(wp.currentDate) ?? (wp.splitGroups.isNotEmpty ? wp.splitGroups.first : SplitGroup.defaultGroups.first),
+          )
+        : (wp.getSplitForDate(wp.currentDate) ?? (wp.splitGroups.isNotEmpty ? wp.splitGroups.first : null));
 
     if (wp.isLoading && exercises.isEmpty) {
       return const DailyTabSkeleton();
@@ -92,6 +101,14 @@ class DailyTab extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
+                      if (activeSplit != null) ...[
+                        TextButton.icon(
+                          onPressed: () => LastWorkoutSheet.show(context, activeSplit),
+                          icon: const Icon(Icons.history_rounded, size: 16),
+                          label: const Text('Last Workout'),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       _AddButton(onTap: () => _openQuickEntry(context)),
                     ],
                   ),
@@ -101,7 +118,10 @@ class DailyTab extends StatelessWidget {
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 sliver: SliverToBoxAdapter(
-                  child: _EmptyState(onStart: () => _openQuickEntry(context)),
+                  child: _EmptyState(
+                    onStart: () => _openQuickEntry(context),
+                    onGuided: () => TodaysWorkoutFlowScreen.start(context),
+                  ),
                 ),
               )
             else
@@ -218,7 +238,8 @@ class _AddButton extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final VoidCallback onStart;
-  const _EmptyState({required this.onStart});
+  final VoidCallback onGuided;
+  const _EmptyState({required this.onStart, required this.onGuided});
 
   @override
   Widget build(BuildContext context) {
@@ -238,7 +259,7 @@ class _EmptyState extends StatelessWidget {
           Text('Nothing logged yet', style: t.titleMedium),
           const SizedBox(height: 6),
           Text(
-            'Add your first exercise. Each set you finish fills the plate.',
+            'Start today\'s workout with the guided flow or add exercises directly.',
             textAlign: TextAlign.center,
             style: t.bodyMedium,
           ),
@@ -246,6 +267,15 @@ class _EmptyState extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
+              onPressed: onGuided,
+              icon: const Icon(Icons.play_circle_fill_rounded),
+              label: const Text('Start Guided Workout'),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
               onPressed: onStart,
               icon: const Icon(Icons.add_rounded),
               label: const Text('Add Exercise'),

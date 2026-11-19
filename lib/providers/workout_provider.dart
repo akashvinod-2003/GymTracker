@@ -256,7 +256,21 @@ class WorkoutProvider extends ChangeNotifier {
     );
 
     final updatedExercises = List<Exercise>.from(session.exercises)..add(newExercise);
-    final updatedSession = session.copyWith(exercises: updatedExercises);
+    String? sId = session.splitId;
+    String? sName = session.splitName;
+    if (sId == null && group != 'Custom' && group != 'General') {
+      final matching = _splitGroups.where((g) => g.name.trim().toLowerCase() == group.trim().toLowerCase()).toList();
+      if (matching.isNotEmpty) {
+        sId = matching.first.id;
+        sName = matching.first.name;
+      }
+    }
+
+    final updatedSession = session.copyWith(
+      exercises: updatedExercises,
+      splitId: sId,
+      splitName: sName,
+    );
     _sessions[currentDateKey] = updatedSession;
     notifyListeners();
 
@@ -776,6 +790,84 @@ class WorkoutProvider extends ChangeNotifier {
 
     if (_db != null) {
       await _db!.deleteWeightLog(id);
+    }
+  }
+
+  // ----------------------------------------------------
+  // WORKOUT FLOW & SPLIT HISTORY METHODS
+  // ----------------------------------------------------
+
+  /// Ensures historical workout sessions are loaded into memory for split history lookups.
+  Future<void> ensureHistoryLoaded() async {
+    if (_db != null && !_isAnalyticsLoaded) {
+      final localSessions = await _db!.loadLocalSessions();
+      if (localSessions.isNotEmpty) {
+        _sessions.addAll(localSessions);
+        notifyListeners();
+      }
+      try {
+        final fetched = await _db!.getAllSessions();
+        if (fetched.isNotEmpty) {
+          _sessions.addAll(fetched);
+          _isAnalyticsLoaded = true;
+          notifyListeners();
+        }
+      } catch (e) {
+        debugPrint("ensureHistoryLoaded note: $e");
+      }
+    }
+  }
+
+  /// Sets or updates the split association for a workout session.
+  Future<void> setSessionSplit(String splitId, String splitName, {String? dateKey}) async {
+    final key = dateKey ?? currentDateKey;
+    final session = _sessions[key] ?? WorkoutSession(date: key, exercises: []);
+    final updated = session.copyWith(splitId: splitId, splitName: splitName);
+    _sessions[key] = updated;
+    notifyListeners();
+
+    // Only persist if the session contains exercises, avoiding saving empty sessions prematurely
+    if (_db != null && updated.exercises.isNotEmpty) {
+      await _db!.saveSession(updated);
+    }
+  }
+
+  /// Retrieves the most recent completed workout session associated with a specific split.
+  WorkoutSession? getLastWorkoutForSplit(String splitId, {String? splitName, String? excludeDate}) {
+    final exclude = excludeDate ?? currentDateKey;
+    final matching = _sessions.values.where((s) {
+      if (s.date == exclude) return false;
+      if (!s.exercises.any((e) => e.sets.isNotEmpty)) return false;
+      return s.matchesSplit(splitId, targetSplitName: splitName);
+    }).toList();
+
+    if (matching.isEmpty) return null;
+    matching.sort((a, b) => b.date.compareTo(a.date)); // descending: latest first
+    return matching.first;
+  }
+
+  /// Retrieves the session immediately preceding the given session for the same split.
+  WorkoutSession? getPreviousWorkoutBeforeSession(WorkoutSession currentSession, {String? splitId, String? splitName}) {
+    final sId = splitId ?? currentSession.splitId ?? '';
+    final sName = splitName ?? currentSession.splitName;
+    final matching = _sessions.values.where((s) {
+      if (s.date.compareTo(currentSession.date) >= 0) return false;
+      if (!s.exercises.any((e) => e.sets.isNotEmpty)) return false;
+      return s.matchesSplit(sId, targetSplitName: sName);
+    }).toList();
+
+    if (matching.isEmpty) return null;
+    matching.sort((a, b) => b.date.compareTo(a.date));
+    return matching.first;
+  }
+
+  /// Atomically updates today's session exercises and split info, and saves to database.
+  Future<void> saveWorkoutSession(WorkoutSession session) async {
+    _sessions[session.date] = session;
+    notifyListeners();
+
+    if (_db != null) {
+      await _db!.saveSession(session);
     }
   }
 }

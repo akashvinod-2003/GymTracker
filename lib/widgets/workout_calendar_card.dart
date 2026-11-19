@@ -7,6 +7,7 @@ import '../providers/theme_provider.dart';
 import '../providers/workout_provider.dart';
 import '../services/streak_service.dart';
 import '../theme/app_theme.dart';
+import '../screens/todays_workout_flow_screen.dart';
 
 class WorkoutCalendarCard extends StatefulWidget {
   final Map<String, WorkoutSession> sessions;
@@ -264,6 +265,29 @@ class _WorkoutCalendarCardState extends State<WorkoutCalendarCard> {
                         ],
                       ),
                     ),
+                    if (widget.selectedDateKey == todayKey) ...[
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          TodaysWorkoutFlowScreen.start(context, initialSplitId: split?.id);
+                        },
+                        icon: const Icon(Icons.add_circle_rounded, size: 15),
+                        label: Text(
+                          hasWorkout ? 'Edit Workout' : 'Add Workout',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                          foregroundColor: isDark ? Colors.black : Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 2,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               );
