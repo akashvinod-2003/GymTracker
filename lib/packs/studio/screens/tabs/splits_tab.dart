@@ -201,7 +201,7 @@ class SplitsTab extends StatelessWidget {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'All default templates have been cleared. Tap "New Split" above to add your own custom split groups, muscles, and exercises.',
+                            'Create a split group, then add body parts and exercises to build your own training library.',
                             textAlign: TextAlign.center,
                             style: GoogleFonts.plusJakartaSans(
                               color: subColor,
@@ -313,10 +313,8 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
   String? _expandedPart;
 
   void _showEditAbbreviationDialog(BuildContext context, WorkoutProvider provider, bool isDark) {
-    final initialText = (widget.group.shortName.trim().toUpperCase() == 'UPP' ||
-            (widget.group.name.toLowerCase().contains('upper') && widget.group.shortName.trim().toUpperCase() == 'UPP'))
-        ? 'UP'
-        : (widget.group.shortName.isNotEmpty ? widget.group.shortName : widget.group.effectiveShortName);
+    final current = widget.group.effectiveShortName;
+    final initialText = current == 'UPP' ? 'UP' : current;
     final controller = TextEditingController(text: initialText);
 
     showDialog(
@@ -462,98 +460,22 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
     );
   }
 
-  void _promptDuplicateAbove(BuildContext context, WorkoutProvider provider, bool isDark) {
-    final nameController = TextEditingController(text: '${widget.group.name} (Copy)');
-    final shortNameController = TextEditingController(text: widget.group.effectiveShortName);
-
+  void _confirmRemovePart(BuildContext context, WorkoutProvider provider, String partName, bool isDark) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? AppTheme.darkCard : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(
-              Icons.arrow_upward_rounded,
-              color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              'Add Split Above',
-              style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800),
-            ),
-          ],
+        title: Text(
+          'Remove $partName?',
+          style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800),
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Duplicates all days, body parts, exercises, sets and reps, and inserts the new split directly above "${widget.group.name}".',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 12.5,
-                color: isDark ? AppTheme.darkTextSecondary : const Color(0xFF5F5F66),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'NEW SPLIT NAME',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-                color: isDark ? AppTheme.darkTextSecondary : const Color(0xFF5F5F66),
-                letterSpacing: 0.8,
-              ),
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: nameController,
-              autofocus: true,
-              style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: isDark ? const Color(0xFF27282C) : const Color(0xFFF7F6F3),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'SHORT NAME / ABBREVIATION',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-                color: isDark ? AppTheme.darkTextSecondary : const Color(0xFF5F5F66),
-                letterSpacing: 0.8,
-              ),
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: shortNameController,
-              maxLength: 8,
-              textCapitalization: TextCapitalization.characters,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-                color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-              ),
-              decoration: InputDecoration(
-                counterText: '',
-                hintText: 'e.g. PUSH',
-                filled: true,
-                fillColor: isDark ? const Color(0xFF27282C) : const Color(0xFFF7F6F3),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              ),
-            ),
-          ],
+        content: Text(
+          'This removes $partName and its exercises from ${widget.group.name}.',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            color: isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary,
+          ),
         ),
         actions: [
           TextButton(
@@ -561,33 +483,16 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () async {
-              final newName = nameController.text.trim();
-              if (newName.isEmpty) return;
-              String shortN = shortNameController.text.trim().toUpperCase();
-              if (shortN.isEmpty) {
-                shortN = widget.group.effectiveShortName;
-              }
+            onPressed: () {
+              provider.removePartFromGroup(widget.group.id, partName);
+              if (_expandedPart == partName) setState(() => _expandedPart = null);
               Navigator.pop(ctx);
-              final duplicated = await provider.duplicateSplitAbove(widget.group.id, customName: newName);
-              if (duplicated != null && shortN.isNotEmpty) {
-                await provider.updateSplitGroup(duplicated.copyWith(shortName: shortN));
-              }
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Inserted "$newName [$shortN]" directly above "${widget.group.name}"'),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                );
-              }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-              foregroundColor: isDark ? Colors.black : Colors.white,
+              backgroundColor: Colors.red.shade600,
+              foregroundColor: Colors.white,
             ),
-            child: const Text('Add Above'),
+            child: const Text('Remove'),
           ),
         ],
       ),
@@ -710,7 +615,7 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${parts.length} body parts configured',
+                      '${parts.length} body part${parts.length == 1 ? '' : 's'} configured',
                       style: GoogleFonts.plusJakartaSans(
                         color: subColor,
                         fontSize: 11.5,
@@ -723,18 +628,6 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Add Split Above (Duplicate Split)
-                  Tooltip(
-                    message: 'Add Split Above',
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_upward_rounded, size: 19),
-                      color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                      onPressed: () => _promptDuplicateAbove(context, workoutProvider, isDark),
-                      padding: const EdgeInsets.all(5),
-                      constraints: const BoxConstraints(),
-                    ),
-                  ),
-                  const SizedBox(width: 2),
                   // Edit Split
                   Tooltip(
                     message: 'Edit Split',
@@ -815,10 +708,10 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF0F3635) : AppTheme.tealBg,
+                      color: isDark ? const Color(0xFF134E4A) : AppTheme.tealBg,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: isDark ? const Color(0xFF134E4A) : const Color(0xFF99F6E4),
+                        color: isDark ? const Color(0xFF14B8A6) : const Color(0xFF99F6E4),
                       ),
                     ),
                     child: Row(
@@ -830,21 +723,24 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                           color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          widget.group.days.join(', '),
-                          style: GoogleFonts.plusJakartaSans(
-                            color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
+                        Flexible(
+                          child: Text(
+                            widget.group.days.join(', '),
+                            style: GoogleFonts.plusJakartaSans(
+                              color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
-                Container(
+                if (widget.group.defaultSets > 0)
+                  Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF1F2937) : const Color(0xFFF1F5F9),
+                    color: isDark ? const Color(0xFF2E3034) : const Color(0xFFF3F2EE),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -917,37 +813,55 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                                 ),
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: isDark ? const Color(0xFF27282C) : const Color(0xFFF3F2EE),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                '${exercises.length} exercises',
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: subColor,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: isDark ? const Color(0xFF27282C) : const Color(0xFFF3F2EE),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '${exercises.length} exercise${exercises.length == 1 ? '' : 's'}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: subColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
-                            InkWell(
-                              onTap: () => _showAddExerciseDialog(context, partName),
-                              child: Icon(
-                                Icons.add_circle_outline_rounded,
-                                size: 18,
-                                color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                            const SizedBox(width: 4),
+                            Tooltip(
+                              message: 'Add exercise',
+                              child: InkWell(
+                                onTap: () => _showAddExerciseDialog(context, partName),
+                                customBorder: const CircleBorder(),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(6),
+                                  child: Icon(
+                                    Icons.add_circle_outline_rounded,
+                                    size: 20,
+                                    color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                                  ),
+                                ),
                               ),
                             ),
-                            const SizedBox(width: 6),
-                            InkWell(
-                              onTap: () => workoutProvider.removePartFromGroup(widget.group.id, partName),
-                              child: Icon(
-                                Icons.close_rounded,
-                                size: 16,
-                                color: subColor,
+                            const SizedBox(width: 4),
+                            Tooltip(
+                              message: 'Remove body part',
+                              child: InkWell(
+                                onTap: () => _confirmRemovePart(context, workoutProvider, partName, isDark),
+                                customBorder: const CircleBorder(),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(6),
+                                  child: Icon(
+                                    Icons.close_rounded,
+                                    size: 18,
+                                    color: subColor,
+                                  ),
+                                ),
                               ),
                             ),
                           ],
@@ -978,7 +892,7 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                                 runSpacing: 6,
                                 children: exercises.map((exName) {
                                   return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.only(left: 8, right: 2, top: 1, bottom: 1),
                                     decoration: BoxDecoration(
                                       color: isDark ? const Color(0xFF27282C) : const Color(0xFFF7F6F3),
                                       borderRadius: BorderRadius.circular(8),
@@ -987,22 +901,30 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Text(
-                                          exName,
-                                          style: GoogleFonts.plusJakartaSans(
-                                            color: titleColor,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
+                                        Flexible(
+                                          child: Text(
+                                            exName,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.plusJakartaSans(
+                                              color: titleColor,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
                                         ),
-                                        const SizedBox(width: 4),
+                                        const SizedBox(width: 2),
                                         InkWell(
                                           onTap: () => workoutProvider.removeExerciseFromPart(
                                               widget.group.id, partName, exName),
-                                          child: Icon(
-                                            Icons.close_rounded,
-                                            size: 12,
-                                            color: subColor,
+                                          customBorder: const CircleBorder(),
+                                          child: Padding(
+                                            padding: const EdgeInsets.all(4),
+                                            child: Icon(
+                                              Icons.close_rounded,
+                                              size: 14,
+                                              color: subColor,
+                                            ),
                                           ),
                                         ),
                                       ],
