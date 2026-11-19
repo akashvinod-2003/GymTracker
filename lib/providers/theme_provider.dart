@@ -7,8 +7,9 @@ enum PwaIconMode {
   light, // Always Light icon
 }
 
-/// Which UI pack the app renders: the original look, or the Studio redesign.
-enum AppThemePack { classic, studio }
+/// Which UI pack the app renders: the original look, the Studio redesign, or
+/// the Turbo pack (milk paper, charcoal, Turbo Blue).
+enum AppThemePack { classic, studio, turbo }
 
 class ThemeProvider extends ChangeNotifier {
   AppThemePack _themePack = AppThemePack.classic;
@@ -78,7 +79,10 @@ class ThemeProvider extends ChangeNotifier {
 
     // Load Theme Pack
     final savedPack = prefs.getString(_prefThemePackKey);
-    _themePack = savedPack == 'studio' ? AppThemePack.studio : AppThemePack.classic;
+    _themePack = AppThemePack.values.firstWhere(
+      (p) => p.name == savedPack,
+      orElse: () => AppThemePack.classic,
+    );
   }
 
   Future<void> _loadPreferences() async {

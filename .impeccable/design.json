@@ -1,0 +1,561 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-19T00:00:00Z",
+  "title": "Design System: GymTracker",
+  "extensions": {
+    "colorMeta": {
+      "milk-paper": {
+        "role": "neutral",
+        "displayName": "Milk Paper",
+        "canonical": "#E9E6DF",
+        "tonalRamp": [
+          "#1B1917",
+          "#2E2B28",
+          "#45403B",
+          "#69635C",
+          "#9A948B",
+          "#CFCAC0",
+          "#E9E6DF",
+          "#F4F2ED"
+        ]
+      },
+      "grill-charcoal": {
+        "role": "neutral",
+        "displayName": "Grill Charcoal",
+        "canonical": "#2E2B28",
+        "tonalRamp": [
+          "#1B1917",
+          "#211F1D",
+          "#262421",
+          "#2E2B28",
+          "#3A3633",
+          "#45403B",
+          "#5C5751",
+          "#7A746C"
+        ]
+      },
+      "turbo-blue": {
+        "role": "primary",
+        "displayName": "Turbo Blue",
+        "canonical": "#1F4BFF",
+        "tonalRamp": [
+          "#1A1F3D",
+          "#23284A",
+          "#1638C8",
+          "#1F4BFF",
+          "#5A78FF",
+          "#8FA5FF",
+          "#C9D4FF",
+          "#E3E8FF"
+        ]
+      },
+      "turbo-light": {
+        "role": "primary",
+        "displayName": "Turbo Light (accent ink on dark)",
+        "tonalRamp": [
+          "#1A1F3D",
+          "#23284A",
+          "#1638C8",
+          "#1F4BFF",
+          "#5A78FF",
+          "#8FA5FF",
+          "#C9D4FF",
+          "#E3E8FF"
+        ],
+        "canonical": "#8FA5FF"
+      },
+      "turbo-deep": {
+        "role": "primary",
+        "displayName": "Turbo Deep",
+        "tonalRamp": [
+          "#1A1F3D",
+          "#23284A",
+          "#1638C8",
+          "#1F4BFF",
+          "#5A78FF",
+          "#8FA5FF",
+          "#C9D4FF",
+          "#E3E8FF"
+        ],
+        "canonical": "#1638C8"
+      },
+      "turbo-tint": {
+        "role": "primary",
+        "displayName": "Turbo Tint (light)",
+        "tonalRamp": [
+          "#1A1F3D",
+          "#23284A",
+          "#1638C8",
+          "#1F4BFF",
+          "#5A78FF",
+          "#8FA5FF",
+          "#C9D4FF",
+          "#E3E8FF"
+        ],
+        "canonical": "#E3E8FF"
+      },
+      "turbo-tint-dark": {
+        "role": "primary",
+        "displayName": "Turbo Tint (dark)",
+        "tonalRamp": [
+          "#1A1F3D",
+          "#23284A",
+          "#1638C8",
+          "#1F4BFF",
+          "#5A78FF",
+          "#8FA5FF",
+          "#C9D4FF",
+          "#E3E8FF"
+        ],
+        "canonical": "#23284A"
+      },
+      "paper-card": {
+        "role": "neutral",
+        "displayName": "Paper Card",
+        "tonalRamp": [
+          "#1B1917",
+          "#2E2B28",
+          "#45403B",
+          "#69635C",
+          "#9A948B",
+          "#CFCAC0",
+          "#E9E6DF",
+          "#F4F2ED"
+        ],
+        "canonical": "#F4F2ED"
+      },
+      "paper-sub": {
+        "role": "neutral",
+        "displayName": "Paper Sub",
+        "tonalRamp": [
+          "#1B1917",
+          "#2E2B28",
+          "#45403B",
+          "#69635C",
+          "#9A948B",
+          "#CFCAC0",
+          "#E9E6DF",
+          "#F4F2ED"
+        ],
+        "canonical": "#DEDAD1"
+      },
+      "paper-rule": {
+        "role": "neutral",
+        "displayName": "Paper Rule",
+        "tonalRamp": [
+          "#1B1917",
+          "#2E2B28",
+          "#45403B",
+          "#69635C",
+          "#9A948B",
+          "#CFCAC0",
+          "#E9E6DF",
+          "#F4F2ED"
+        ],
+        "canonical": "#CFCAC0"
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "Ink Secondary",
+        "tonalRamp": [
+          "#1B1917",
+          "#2E2B28",
+          "#45403B",
+          "#69635C",
+          "#9A948B",
+          "#CFCAC0",
+          "#E9E6DF",
+          "#F4F2ED"
+        ],
+        "canonical": "#5C5751"
+      },
+      "ink-tertiary": {
+        "role": "neutral",
+        "displayName": "Ink Tertiary",
+        "tonalRamp": [
+          "#1B1917",
+          "#2E2B28",
+          "#45403B",
+          "#69635C",
+          "#9A948B",
+          "#CFCAC0",
+          "#E9E6DF",
+          "#F4F2ED"
+        ],
+        "canonical": "#69635C"
+      },
+      "charcoal-sub": {
+        "role": "neutral",
+        "displayName": "Charcoal Sub",
+        "tonalRamp": [
+          "#1B1917",
+          "#2E2B28",
+          "#45403B",
+          "#69635C",
+          "#9A948B",
+          "#CFCAC0",
+          "#E9E6DF",
+          "#F4F2ED"
+        ],
+        "canonical": "#3A3633"
+      },
+      "charcoal-rule": {
+        "role": "neutral",
+        "displayName": "Charcoal Rule",
+        "tonalRamp": [
+          "#1B1917",
+          "#2E2B28",
+          "#45403B",
+          "#69635C",
+          "#9A948B",
+          "#CFCAC0",
+          "#E9E6DF",
+          "#F4F2ED"
+        ],
+        "canonical": "#45403B"
+      },
+      "charcoal-ground": {
+        "role": "neutral",
+        "displayName": "Charcoal Ground",
+        "tonalRamp": [
+          "#1B1917",
+          "#2E2B28",
+          "#45403B",
+          "#69635C",
+          "#9A948B",
+          "#CFCAC0",
+          "#E9E6DF",
+          "#F4F2ED"
+        ],
+        "canonical": "#211F1D"
+      },
+      "charcoal-deep": {
+        "role": "neutral",
+        "displayName": "Charcoal Deep",
+        "tonalRamp": [
+          "#1B1917",
+          "#2E2B28",
+          "#45403B",
+          "#69635C",
+          "#9A948B",
+          "#CFCAC0",
+          "#E9E6DF",
+          "#F4F2ED"
+        ],
+        "canonical": "#1B1917"
+      },
+      "ash-secondary": {
+        "role": "neutral",
+        "displayName": "Ash Secondary",
+        "tonalRamp": [
+          "#1B1917",
+          "#2E2B28",
+          "#45403B",
+          "#69635C",
+          "#9A948B",
+          "#CFCAC0",
+          "#E9E6DF",
+          "#F4F2ED"
+        ],
+        "canonical": "#B4AEA5"
+      },
+      "ash-tertiary": {
+        "role": "neutral",
+        "displayName": "Ash Tertiary",
+        "tonalRamp": [
+          "#1B1917",
+          "#2E2B28",
+          "#45403B",
+          "#69635C",
+          "#9A948B",
+          "#CFCAC0",
+          "#E9E6DF",
+          "#F4F2ED"
+        ],
+        "canonical": "#9A948B"
+      },
+      "success-light": {
+        "role": "secondary",
+        "displayName": "Success (light)",
+        "tonalRamp": [
+          "#0B1A12",
+          "#1C3426",
+          "#2A503A",
+          "#0E7040",
+          "#3DD68C",
+          "#B3D2BA",
+          "#D9E8DC",
+          "#EEF5EF"
+        ],
+        "canonical": "#0E7040"
+      },
+      "success-dark": {
+        "role": "secondary",
+        "displayName": "Success (dark)",
+        "tonalRamp": [
+          "#0B1A12",
+          "#1C3426",
+          "#2A503A",
+          "#0E7040",
+          "#3DD68C",
+          "#B3D2BA",
+          "#D9E8DC",
+          "#EEF5EF"
+        ],
+        "canonical": "#3DD68C"
+      },
+      "danger-light": {
+        "role": "tertiary",
+        "displayName": "Danger (light)",
+        "tonalRamp": [
+          "#2A1512",
+          "#41241F",
+          "#63342C",
+          "#B8202A",
+          "#FF7A70",
+          "#E6BAB1",
+          "#F3DCD7",
+          "#FAEFEC"
+        ],
+        "canonical": "#B8202A"
+      },
+      "danger-dark": {
+        "role": "tertiary",
+        "displayName": "Danger (dark)",
+        "tonalRamp": [
+          "#2A1512",
+          "#41241F",
+          "#63342C",
+          "#B8202A",
+          "#FF7A70",
+          "#E6BAB1",
+          "#F3DCD7",
+          "#FAEFEC"
+        ],
+        "canonical": "#FF7A70"
+      }
+    },
+    "typographyMeta": {
+      "display-large": {
+        "displayName": "Display Large",
+        "purpose": "Largest heavy figure."
+      },
+      "display": {
+        "displayName": "Display",
+        "purpose": "The live figure, e.g. today's volume on the hero slab; always tabular."
+      },
+      "headline-large": {
+        "displayName": "Headline Large",
+        "purpose": "Screen headlines."
+      },
+      "headline-medium": {
+        "displayName": "Headline Medium",
+        "purpose": "Section headlines."
+      },
+      "headline-small": {
+        "displayName": "Headline Small",
+        "purpose": "Card headlines such as the split name."
+      },
+      "title-large": {
+        "displayName": "Title Large",
+        "purpose": "App bar title, ring figure."
+      },
+      "title-medium": {
+        "displayName": "Title Medium",
+        "purpose": "Dialog titles, unit suffixes."
+      },
+      "title-small": {
+        "displayName": "Title Small",
+        "purpose": "List and row titles."
+      },
+      "body-large": {
+        "displayName": "Body Large",
+        "purpose": "Primary body text, input text."
+      },
+      "body-medium": {
+        "displayName": "Body Medium",
+        "purpose": "Secondary copy, dialog content, snackbar."
+      },
+      "body-small": {
+        "displayName": "Body Small",
+        "purpose": "Supporting detail."
+      },
+      "label-large": {
+        "displayName": "Label Large",
+        "purpose": "Button labels."
+      },
+      "label-medium": {
+        "displayName": "Label Medium",
+        "purpose": "Stat captions."
+      },
+      "label-small": {
+        "displayName": "Label Small",
+        "purpose": "Tab labels and tiny captions; 11px floor."
+      }
+    },
+    "shadows": [
+      {
+        "name": "chrome-lift-light",
+        "value": "0 6px 18px rgba(27,25,23,0.22)",
+        "purpose": "Floating tab bar, light mode. The only structural shadow."
+      },
+      {
+        "name": "chrome-lift-dark",
+        "value": "0 6px 18px rgba(27,25,23,0.5)",
+        "purpose": "Floating tab bar, dark mode."
+      },
+      {
+        "name": "residual-card-lift",
+        "value": "0 4px 16px rgba(0,0,0,0.03)",
+        "purpose": "Carried over on some Analytics, Splits and body-weight cards; do not extend."
+      }
+    ],
+    "motion": [
+      {
+        "name": "spring-standard",
+        "value": "spring(response 0.35s, damping 1.0)",
+        "purpose": "Default UI motion, tab block glide; no overshoot."
+      },
+      {
+        "name": "spring-press",
+        "value": "spring(response 0.18s, damping 1.0)",
+        "purpose": "Press feedback; Pressable scales to 0.96 on pointer down."
+      },
+      {
+        "name": "spring-bouncy",
+        "value": "spring(response 0.4s, damping 0.75)",
+        "purpose": "Only after momentum gestures or a completed set."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "min-phone",
+        "value": "360px"
+      },
+      {
+        "name": "nav-max",
+        "value": "420px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one Turbo fill per view: resume, start, save.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M8 5v14l11-7z\"/></svg>Resume workout</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 50px; padding: 0 24px; background: #1F4BFF; color: #FFFFFF; border: none; border-radius: 8px; font: 700 15px/1.2 'Inter', sans-serif; letter-spacing: -0.1px; cursor: pointer; transition: transform 0.18s, background 0.18s; } .ds-btn-primary:hover { background: #1638C8; } .ds-btn-primary:active { transform: scale(0.96); } .ds-btn-primary:focus-visible { outline: 2px solid #1F4BFF; outline-offset: 3px; }"
+    },
+    {
+      "name": "Outlined Button",
+      "kind": "button",
+      "refersTo": "button-outlined",
+      "description": "Secondary action: 1.5px ink stroke on paper.",
+      "html": "<button class=\"ds-btn-outlined\">Edit split</button>",
+      "css": ".ds-btn-outlined { min-height: 50px; padding: 0 24px; background: transparent; color: #2E2B28; border: 1.5px solid #2E2B28; border-radius: 8px; font: 700 15px/1.2 'Inter', sans-serif; letter-spacing: -0.1px; cursor: pointer; transition: transform 0.18s, background 0.18s; } .ds-btn-outlined:hover { background: #DEDAD1; } .ds-btn-outlined:active { transform: scale(0.96); } .ds-btn-outlined:focus-visible { outline: 2px solid #1F4BFF; outline-offset: 3px; }"
+    },
+    {
+      "name": "Text Button",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "Link-like action in accentText.",
+      "html": "<button class=\"ds-btn-text\">Load weekly volume</button>",
+      "css": ".ds-btn-text { min-height: 44px; padding: 0 12px; background: transparent; color: #1F4BFF; border: none; border-radius: 8px; font: 700 15px/1.2 'Inter', sans-serif; cursor: pointer; } .ds-btn-text:hover { background: #E3E8FF; } .ds-btn-text:focus-visible { outline: 2px solid #1F4BFF; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Filled field with 1.5px rule; focus turns the border 2px Turbo.",
+      "html": "<input class=\"ds-input\" placeholder=\"Weight (kg)\">",
+      "css": ".ds-input { width: 240px; padding: 14px 16px; background: #DEDAD1; color: #2E2B28; border: 1.5px solid #CFCAC0; border-radius: 8px; font: 500 16px/1.45 'Inter', sans-serif; caret-color: #1F4BFF; outline: none; } .ds-input::placeholder { color: #69635C; } .ds-input:focus, .ds-input:focus-visible { border: 2px solid #1F4BFF; padding: 13.5px 15.5px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Paper card with a 1.5px rule, no shadow.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-cap\">Streak</div><div class=\"ds-card-fig\">1 d</div><div class=\"ds-card-sub\">Best 1 d</div></div>",
+      "css": ".ds-card { width: 180px; padding: 16px; background: #F4F2ED; border: 1px solid #CFCAC0; border-radius: 12px; } .ds-card-cap { font: 600 13px/1.2 'Inter', sans-serif; color: #5C5751; } .ds-card-fig { margin-top: 8px; font: 800 26px/1.12 'Inter Tight', sans-serif; letter-spacing: -0.7px; color: #2E2B28; font-variant-numeric: tabular-nums; } .ds-card-sub { margin-top: 4px; font: 500 14.5px/1.45 'Inter', sans-serif; color: #5C5751; }"
+    },
+    {
+      "name": "Hero Slab",
+      "kind": "custom",
+      "refersTo": "hero-slab",
+      "description": "Charcoal slab rendered in the dark palette; holds the day's volume.",
+      "html": "<div class=\"ds-hero\"><div class=\"ds-hero-cap\">Volume lifted</div><div class=\"ds-hero-fig\">1,640<span>kg</span></div><span class=\"ds-hero-pill\">1 day streak</span></div>",
+      "css": ".ds-hero { width: 300px; padding: 20px; background: #2E2B28; border: 1.5px solid #2E2B28; border-radius: 12px; color: #E9E6DF; } .ds-hero-cap { font: 600 13px/1.2 'Inter', sans-serif; color: #B4AEA5; } .ds-hero-fig { font: 900 36px/1.05 'Inter Tight', sans-serif; letter-spacing: -1.3px; font-variant-numeric: tabular-nums; } .ds-hero-fig span { margin-left: 4px; font: 800 17px/1.25 'Inter Tight', sans-serif; color: #B4AEA5; } .ds-hero-pill { display: inline-block; margin-top: 10px; padding: 6px 12px; background: #23284A; color: #8FA5FF; border-radius: 12px; font: 600 13px/1.2 'Inter', sans-serif; }"
+    },
+    {
+      "name": "Bottom Tab Bar",
+      "kind": "nav",
+      "refersTo": "nav-bar",
+      "description": "Floating charcoal bar; active tab is a solid Turbo block.",
+      "html": "<nav class=\"ds-nav\"><button class=\"ds-nav-tab is-active\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M3 4h18v17H3zM5 9v10h14V9zM7 11h5v5H7z\"/></svg>Today</button><button class=\"ds-nav-tab\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M20.57 14.86 22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z\"/></svg>Workout</button><button class=\"ds-nav-tab\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z\"/></svg>Splits</button><button class=\"ds-nav-tab\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M3 17l6-6 4 4 8-8\"/></svg>Progress</button></nav>",
+      "css": ".ds-nav { display: flex; width: 340px; height: 64px; padding: 6px; gap: 0; background: rgba(46,43,40,0.97); border: 1px solid rgba(0,0,0,0.10); border-radius: 12px; box-shadow: 0 6px 18px rgba(27,25,23,0.22); } .ds-nav-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: transparent; color: #B4AEA5; border: none; border-radius: 8px; font: 600 11px/1.2 'Inter', sans-serif; letter-spacing: 0.1px; cursor: pointer; transition: background 0.35s, color 0.35s, transform 0.18s; } .ds-nav-tab:hover { color: #E9E6DF; } .ds-nav-tab:active { transform: scale(0.96); } .ds-nav-tab:focus-visible { outline: 2px solid #8FA5FF; outline-offset: -2px; } .ds-nav-tab.is-active { background: #1F4BFF; color: #FFFFFF; font-weight: 800; }"
+    },
+    {
+      "name": "Dialog",
+      "kind": "custom",
+      "refersTo": "dialog",
+      "description": "Paper dialog with 1.5px rule, 12px radius, Turbo primary.",
+      "html": "<div class=\"ds-dialog\"><div class=\"ds-dialog-title\">Log body weight</div><div class=\"ds-dialog-body\">Enter today's weight in kg.</div><div class=\"ds-dialog-actions\"><button class=\"ds-dialog-cancel\">Cancel</button><button class=\"ds-dialog-ok\">Save</button></div></div>",
+      "css": ".ds-dialog { width: 300px; padding: 24px; background: #F4F2ED; border: 1.5px solid #CFCAC0; border-radius: 12px; } .ds-dialog-title { font: 800 17px/1.25 'Inter Tight', sans-serif; letter-spacing: -0.2px; color: #2E2B28; } .ds-dialog-body { margin-top: 8px; font: 500 14.5px/1.45 'Inter', sans-serif; color: #5C5751; } .ds-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; } .ds-dialog-cancel { min-height: 44px; padding: 0 12px; background: transparent; color: #1F4BFF; border: none; border-radius: 8px; font: 700 15px/1.2 'Inter', sans-serif; cursor: pointer; } .ds-dialog-ok { min-height: 44px; padding: 0 20px; background: #1F4BFF; color: #FFFFFF; border: none; border-radius: 8px; font: 700 15px/1.2 'Inter', sans-serif; cursor: pointer; } .ds-dialog-ok:active, .ds-dialog-cancel:active { transform: scale(0.96); } .ds-dialog-ok:focus-visible, .ds-dialog-cancel:focus-visible { outline: 2px solid #1F4BFF; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Gym Ink on Milk Paper",
+    "overview": "A flat, high-contrast print sheet. Warm milk paper carries the ground, grill charcoal carries the structure (type, the hero slab, the tab bar), and one electric Turbo blue marks the thing to act on right now: the primary button, the active tab, links, the live figure's action. It refuses the category defaults of the dark neon dashboard and the soft pastel card stack.\n\nDensity is phone-first and arm's-length readable: heavy, tight-tracked Inter Tight figures, big 50px buttons, cards separated by thin warm rules instead of shadows. The one moment of depth is floating chrome, the charcoal tab bar, which sits on a single soft offset shadow. Motion is critically damped springs with press-down scaling; nothing glows.",
+    "keyCharacteristics": [
+      "60-30-10 split of milk, charcoal and Turbo on every screen.",
+      "One live number per screen, set in heavy tabular Inter Tight.",
+      "Charcoal hero slab that renders its contents in the dark palette in both modes.",
+      "Square-ish corners (6-14px), thin warm rules (1.5px on themed controls), sharp-cornered Material icons.",
+      "Floating charcoal tab bar with a solid Turbo block for the active tab."
+    ],
+    "rules": [
+      {
+        "name": "The 60-30-10 Rule",
+        "body": "Milk paper about 60% of a screen, charcoal about 30%, Turbo about 10%. If two things on a screen are blue fills, one of them is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Fill vs Ink Rule",
+        "body": "Turbo fills are always exact `#1F4BFF` with white on top, in both modes. Turbo as text or icon colour on any dark ground is `t300`, never `#1F4BFF`.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Figure Rule",
+        "body": "Every number that can change (volume, sets, weight × reps, streaks, timers) uses `fontFeatures: tabularFigures` so digits never jitter.",
+        "section": "typography"
+      },
+      {
+        "name": "The 11px Floor Rule",
+        "body": "Nothing on screen is set below 11px.",
+        "section": "typography"
+      },
+      {
+        "name": "The No-Glow Rule",
+        "body": "No coloured shadows or glows around Turbo elements; Turbo is a flat ink block.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** resolve colours through `Pal.of(context)`; use `accent` for fills and `accentText` for Turbo-coloured text and icons.",
+      "**Do** keep Turbo to one primary action or active state per view, roughly 10% of the screen.",
+      "**Do** set every changing number in Inter Tight with `tabularFigures`.",
+      "**Do** use `separator` rules (prefer `AppTheme.borderWidth`, 1.5px) and tone for separation, and token radii (6/8/12/14px).",
+      "**Do** wrap any charcoal slab's contents in `AppTheme.darkTheme` so they read in the dark palette.",
+      "**Do** use `_sharp` Material icons."
+    ],
+    "donts": [
+      "**Don't** put `#1F4BFF` text or icons on charcoal or any dark ground; use `t300`.",
+      "**Don't** add glows, coloured shadows or gradients-as-decoration; the only real shadow is on floating chrome.",
+      "**Don't** use muscle-group inks, success or danger as brand accents.",
+      "**Don't** go below 11px type or below 44px tap targets.",
+      "**Don't** introduce pure grey or pure black; stay on the warm `n050`-`n950` ramp.",
+      "**Don't** round corners past 14px; buttons stay 8px."
+    ]
+  }
+}

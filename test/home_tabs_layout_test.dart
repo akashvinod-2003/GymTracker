@@ -22,6 +22,10 @@ import 'package:gym_tracker/packs/studio/widgets/custom_bottom_nav.dart' as stud
 import 'package:gym_tracker/packs/studio/theme/app_theme.dart' as studio;
 import 'package:gym_tracker/packs/studio/screens/tabs/daily_tab.dart' as studio;
 import 'package:gym_tracker/packs/studio/screens/tabs/workout_tab.dart' as studio;
+import 'package:gym_tracker/packs/turbo/widgets/custom_bottom_nav.dart' as turbo;
+import 'package:gym_tracker/packs/turbo/theme/app_theme.dart' as turbo;
+import 'package:gym_tracker/packs/turbo/screens/tabs/daily_tab.dart' as turbo;
+import 'package:gym_tracker/packs/turbo/screens/tabs/workout_tab.dart' as turbo;
 
 /// Flutter SDK root, derived from the running `flutter_tester` binary
 /// (`<root>/bin/cache/artifacts/engine/<platform>/flutter_tester`).
@@ -121,10 +125,13 @@ void main() {
     await load('Plus Jakarta Sans', all);
     // google_fonts asks for one family per weight, e.g. PlusJakartaSans_700.
     await load('PlusJakartaSans_regular', ['roboto-regular.ttf']);
-    for (final w in [100, 200, 300, 400, 500, 600, 700, 800, 900]) {
-      await load('PlusJakartaSans_$w', [
-        w >= 800 ? 'roboto-black.ttf' : w >= 600 ? 'roboto-bold.ttf' : w == 500 ? 'roboto-medium.ttf' : 'roboto-regular.ttf',
-      ]);
+    for (final family in ['PlusJakartaSans', 'Inter', 'InterTight']) {
+      await load('${family}_regular', ['roboto-regular.ttf']);
+      for (final w in [100, 200, 300, 400, 500, 600, 700, 800, 900]) {
+        await load('${family}_$w', [
+          w >= 800 ? 'roboto-black.ttf' : w >= 600 ? 'roboto-bold.ttf' : w == 500 ? 'roboto-medium.ttf' : 'roboto-regular.ttf',
+        ]);
+      }
     }
   });
   setUp(() {
@@ -143,6 +150,12 @@ void main() {
       studio.AppTheme.darkTheme,
       () => studio.DailyTab(onNavigateToSplits: () {}, onNavigateToWorkout: () {}),
       () => const studio.WorkoutTab(),
+    ),
+    'turbo': (
+      turbo.AppTheme.lightTheme,
+      turbo.AppTheme.darkTheme,
+      () => turbo.DailyTab(onNavigateToSplits: () {}, onNavigateToWorkout: () {}),
+      () => const turbo.WorkoutTab(),
     ),
   };
 
@@ -170,9 +183,11 @@ void main() {
 
     testWidgets('bottom nav fits 360px: ${pack.key}', (tester) async {
       final tapped = <int>[];
-      final nav = pack.key == 'classic'
-          ? CustomBottomNav(currentIndex: 1, onTabSelected: tapped.add, onCenterFabPressed: () {})
-          : studio.CustomBottomNav(currentIndex: 1, onTabSelected: tapped.add);
+      final nav = switch (pack.key) {
+        'classic' => CustomBottomNav(currentIndex: 1, onTabSelected: tapped.add, onCenterFabPressed: () {}),
+        'studio' => studio.CustomBottomNav(currentIndex: 1, onTabSelected: tapped.add) as Widget,
+        _ => turbo.CustomBottomNav(currentIndex: 1, onTabSelected: tapped.add),
+      };
       await _pump(tester,
           child: Align(alignment: Alignment.bottomCenter, child: nav),
           wp: _provider(withData: false),

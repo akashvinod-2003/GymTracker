@@ -13,6 +13,9 @@ import 'theme/app_theme.dart';
 import 'packs/studio/screens/auth_screen.dart' as studio;
 import 'packs/studio/screens/home_screen.dart' as studio;
 import 'packs/studio/theme/app_theme.dart' as studio;
+import 'packs/turbo/screens/auth_screen.dart' as turbo;
+import 'packs/turbo/screens/home_screen.dart' as turbo;
+import 'packs/turbo/theme/app_theme.dart' as turbo;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,18 +68,13 @@ class GymTrackerApp extends StatelessWidget {
       ],
       child: Consumer2<ThemeProvider, AuthProvider>(
         builder: (context, themeProvider, authProvider, _) {
-          final isStudio = themeProvider.themePack == AppThemePack.studio;
-          final Widget home;
-          if (authProvider.isAuthenticated) {
-            home = isStudio ? const studio.HomeScreen() : const HomeScreen();
-          } else {
-            home = isStudio ? const studio.AuthScreen() : const AuthScreen();
-          }
+          final pack = themePack(themeProvider.themePack);
+          final home = authProvider.isAuthenticated ? pack.home : pack.auth;
           return MaterialApp(
             title: 'PulseFit - Gym Tracker',
             debugShowCheckedModeBanner: false,
-            theme: isStudio ? studio.AppTheme.lightTheme : AppTheme.lightTheme,
-            darkTheme: isStudio ? studio.AppTheme.darkTheme : AppTheme.darkTheme,
+            theme: pack.light,
+            darkTheme: pack.dark,
             themeMode: themeProvider.themeMode,
             home: home,
           );
@@ -85,3 +83,27 @@ class GymTrackerApp extends StatelessWidget {
     );
   }
 }
+
+/// Screens and themes for one UI pack.
+typedef PackScreens = ({Widget home, Widget auth, ThemeData light, ThemeData dark});
+
+PackScreens themePack(AppThemePack pack) => switch (pack) {
+      AppThemePack.classic => (
+          home: const HomeScreen(),
+          auth: const AuthScreen(),
+          light: AppTheme.lightTheme,
+          dark: AppTheme.darkTheme,
+        ),
+      AppThemePack.studio => (
+          home: const studio.HomeScreen(),
+          auth: const studio.AuthScreen(),
+          light: studio.AppTheme.lightTheme,
+          dark: studio.AppTheme.darkTheme,
+        ),
+      AppThemePack.turbo => (
+          home: const turbo.HomeScreen(),
+          auth: const turbo.AuthScreen(),
+          light: turbo.AppTheme.lightTheme,
+          dark: turbo.AppTheme.darkTheme,
+        ),
+    };
