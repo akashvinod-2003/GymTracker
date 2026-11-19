@@ -8,6 +8,7 @@ import '../../widgets/category_pills_row.dart';
 import '../../widgets/exercise_card.dart';
 import '../../widgets/hero_volume_card.dart';
 import '../../widgets/quick_entry_sheet.dart';
+import '../../widgets/daily_tab_skeleton.dart';
 
 class DailyTab extends StatelessWidget {
   final VoidCallback onNavigateToSplits;
@@ -37,6 +38,10 @@ class DailyTab extends StatelessWidget {
     final subColor = isDark ? AppTheme.darkTextSecondary : const Color(0xFF64748B);
     final cardBg = isDark ? AppTheme.darkCard : AppTheme.lightCard;
     final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
+
+    if (workoutProvider.isLoading && exercises.isEmpty) {
+      return const DailyTabSkeleton();
+    }
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),

@@ -43,13 +43,15 @@ class ThemeProvider extends ChangeNotifier {
     return isDarkLogo(context) ? 'assets/logo_v2_dark.png' : 'assets/logo_v2_light.png';
   }
 
-  ThemeProvider() {
-    _loadPreferences();
+  ThemeProvider([SharedPreferences? initialPrefs]) {
+    if (initialPrefs != null) {
+      _applyPreferences(initialPrefs);
+    } else {
+      _loadPreferences();
+    }
   }
 
-  Future<void> _loadPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    
+  void _applyPreferences(SharedPreferences prefs) {
     // Load Theme Mode
     final savedTheme = prefs.getString(_prefThemeKey);
     if (savedTheme != null) {
@@ -77,7 +79,11 @@ class ThemeProvider extends ChangeNotifier {
     // Load Theme Pack
     final savedPack = prefs.getString(_prefThemePackKey);
     _themePack = savedPack == 'studio' ? AppThemePack.studio : AppThemePack.classic;
+  }
 
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    _applyPreferences(prefs);
     notifyListeners();
   }
 

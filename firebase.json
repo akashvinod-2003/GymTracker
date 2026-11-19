@@ -8,85 +8,81 @@
     ],
     "headers": [
       {
+        "source": "index.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
         "source": "/",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-          { "key": "Pragma", "value": "no-cache" },
-          { "key": "Expires", "value": "0" }
+          { "key": "Cache-Control", "value": "no-cache" }
         ]
       },
       {
         "source": "**/*.html",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-          { "key": "Pragma", "value": "no-cache" },
-          { "key": "Expires", "value": "0" }
+          { "key": "Cache-Control", "value": "no-cache" }
         ]
       },
       {
         "source": "flutter_bootstrap.js",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-          { "key": "Pragma", "value": "no-cache" },
-          { "key": "Expires", "value": "0" }
-        ]
-      },
-      {
-        "source": "pwa-update.js",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-          { "key": "Pragma", "value": "no-cache" },
-          { "key": "Expires", "value": "0" }
-        ]
-      },
-      {
-        "source": "sw.js",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-          { "key": "Pragma", "value": "no-cache" },
-          { "key": "Expires", "value": "0" }
-        ]
-      },
-      {
-        "source": "manifest*.json",
-        "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-          { "key": "Pragma", "value": "no-cache" },
-          { "key": "Expires", "value": "0" }
+          { "key": "Cache-Control", "value": "no-cache" }
         ]
       },
       {
         "source": "version.json",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-          { "key": "Pragma", "value": "no-cache" },
-          { "key": "Expires", "value": "0" }
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "manifest.json",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      },
+      {
+        "source": "manifest*.json",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
         ]
       },
       {
         "source": "flutter_service_worker.js",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-          { "key": "Pragma", "value": "no-cache" },
-          { "key": "Expires", "value": "0" }
+          { "key": "Cache-Control", "value": "no-cache" }
         ]
       },
       {
-        "source": "**/*.@(js|wasm)",
+        "source": "pwa-update.js",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+          { "key": "Cache-Control", "value": "no-cache" }
         ]
       },
       {
-        "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|ico)",
+        "source": "sw.js",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+          { "key": "Cache-Control", "value": "no-cache" }
         ]
       },
       {
-        "source": "**/*.@(woff|woff2|ttf|otf)",
+        "source": "main.dart.*",
         "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=604800, immutable" }
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "source": "canvaskit/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        ]
+      },
+      {
+        "source": "assets/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
         ]
       }
     ],

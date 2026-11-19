@@ -29,6 +29,16 @@ class DatabaseService {
   String get _baselineMonthKey => 'baseline_month_$userId';
   String get _localWeightLogsKey => 'weight_logs_$userId';
 
+  // Public Local Storage Fast-Path Helpers
+  Future<List<SplitGroup>> loadLocalSplits() => _loadSplitsLocally();
+  Future<void> saveLocalSplits(List<SplitGroup> groups) => _saveSplitsLocally(groups);
+
+  Future<Map<String, WorkoutSession>> loadLocalSessions() => _loadSessionsLocally();
+  Future<void> saveLocalSessions(Map<String, WorkoutSession> sessions) => _saveSessionsLocally(sessions);
+
+  Future<List<BodyWeightEntry>> loadLocalWeightLogs() => _loadWeightLogsLocally();
+  Future<void> saveLocalWeightLogs(List<BodyWeightEntry> logs) => _saveWeightLogsLocally(logs);
+
   // ----------------------------------------------------
   // SPLITS & MUSCLE GROUPS & EXERCISES CATALOG
   // ----------------------------------------------------
@@ -40,6 +50,31 @@ class DatabaseService {
     'grp-lower',
   };
 
+  Stream<List<SplitGroup>> streamSplitGroups() {
+    if (!_isFirestoreAvailable || _firestore == null || userId.isEmpty) {
+      return const Stream.empty();
+    }
+    return _firestore!
+        .collection('users')
+        .doc(userId)
+        .collection('splits')
+        .snapshots()
+        .map((snap) {
+          final groups = <SplitGroup>[];
+          for (var doc in snap.docs) {
+            if (!_legacyDefaultGroupIds.contains(doc.id)) {
+              final data = doc.data();
+              data['id'] = doc.id;
+              groups.add(SplitGroup.fromMap(data));
+            }
+          }
+          if (groups.isNotEmpty) {
+            _saveSplitsLocally(groups);
+          }
+          return groups;
+        });
+  }
+
   Future<List<SplitGroup>> getSplitGroups() async {
     if (_isFirestoreAvailable && _firestore != null && userId.isNotEmpty) {
       try {
@@ -47,7 +82,8 @@ class DatabaseService {
             .collection('users')
             .doc(userId)
             .collection('splits')
-            .get();
+            .get()
+            .timeout(const Duration(milliseconds: 2500));
 
         if (snap.docs.isNotEmpty) {
           final groups = <SplitGroup>[];
@@ -66,7 +102,7 @@ class DatabaseService {
           return groups;
         }
       } catch (e) {
-        debugPrint("Error fetching splits from Firestore: $e");
+        debugPrint("Error/timeout fetching splits from Firestore, using cache: $e");
       }
     }
 
@@ -165,6 +201,59 @@ class DatabaseService {
   // WORKOUT SESSIONS & ANNUAL RETENTION POLICY
   // ----------------------------------------------------
 
+  Stream<WorkoutSession?> streamSession(String dateKey) {
+    if (!_isFirestoreAvailable || _firestore == null || userId.isEmpty) {
+      return const Stream.empty();
+    }
+    return _firestore!
+        .collection('users')
+        .doc(userId)
+        .collection('sessions')
+        .doc(dateKey)
+        .snapshots()
+        .map((doc) {
+          if (doc.exists && doc.data() != null) {
+            final data = doc.data()!;
+            data['date'] = doc.id;
+            final session = WorkoutSession.fromMap(data);
+            _loadSessionsLocally().then((local) {
+              local[dateKey] = session;
+              _saveSessionsLocally(local);
+            });
+            return session;
+          }
+          return null;
+        });
+  }
+
+  Future<WorkoutSession?> getSession(String dateKey, {Duration timeout = const Duration(milliseconds: 2500)}) async {
+    if (_isFirestoreAvailable && _firestore != null && userId.isNotEmpty) {
+      try {
+        final doc = await _firestore!
+            .collection('users')
+            .doc(userId)
+            .collection('sessions')
+            .doc(dateKey)
+            .get()
+            .timeout(timeout);
+
+        if (doc.exists && doc.data() != null) {
+          final data = doc.data()!;
+          data['date'] = doc.id;
+          final session = WorkoutSession.fromMap(data);
+          final local = await _loadSessionsLocally();
+          local[dateKey] = session;
+          await _saveSessionsLocally(local);
+          return session;
+        }
+      } catch (e) {
+        debugPrint("Error/timeout fetching single session $dateKey from Firestore: $e");
+      }
+    }
+    final local = await _loadSessionsLocally();
+    return local[dateKey];
+  }
+
   Future<Map<String, WorkoutSession>> getAllSessions() async {
     Map<String, WorkoutSession> sessions = {};
 
@@ -174,7 +263,8 @@ class DatabaseService {
             .collection('users')
             .doc(userId)
             .collection('sessions')
-            .get();
+            .get()
+            .timeout(const Duration(milliseconds: 3500));
 
         if (snap.docs.isNotEmpty) {
           for (var doc in snap.docs) {
@@ -185,7 +275,7 @@ class DatabaseService {
           await _saveSessionsLocally(sessions);
         }
       } catch (e) {
-        debugPrint("Error fetching sessions from Firestore: $e");
+        debugPrint("Error/timeout fetching sessions from Firestore: $e");
       }
     }
 
@@ -421,7 +511,8 @@ class DatabaseService {
             .doc(userId)
             .collection('weight_logs')
             .orderBy('date', descending: false)
-            .get();
+            .get()
+            .timeout(const Duration(milliseconds: 2500));
 
         if (snap.docs.isNotEmpty) {
           final logs = snap.docs.map((doc) {
@@ -433,7 +524,7 @@ class DatabaseService {
           return logs;
         }
       } catch (e) {
-        debugPrint("Error fetching weight logs from Firestore: $e");
+        debugPrint("Error/timeout fetching weight logs from Firestore: $e");
       }
     }
 

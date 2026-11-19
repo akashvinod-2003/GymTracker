@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
@@ -15,6 +16,9 @@ import 'packs/studio/theme/app_theme.dart' as studio;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Pre-load SharedPreferences concurrently for instant theme resolution
+  final prefsFuture = SharedPreferences.getInstance();
+
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
@@ -23,18 +27,24 @@ void main() async {
     debugPrint("Firebase initialization note: $e (App will run with offline & local fallback if needed)");
   }
 
-  runApp(const GymTrackerApp());
+  final prefs = await prefsFuture;
+
+  // Do NOT block runApp() with Firestore queries.
+  // Only Firebase.initializeApp() and SharedPreferences for theme are awaited before runApp().
+  runApp(GymTrackerApp(prefs: prefs));
 }
 
 class GymTrackerApp extends StatelessWidget {
-  const GymTrackerApp({super.key});
+  final SharedPreferences prefs;
+
+  const GymTrackerApp({super.key, required this.prefs});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<ThemeProvider>(
-          create: (_) => ThemeProvider(),
+          create: (_) => ThemeProvider(prefs),
         ),
         ChangeNotifierProvider<AuthProvider>(
           create: (_) => AuthProvider(),

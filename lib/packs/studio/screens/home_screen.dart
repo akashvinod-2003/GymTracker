@@ -20,12 +20,16 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _tab = 0;
+  bool _hasLoadedAnalytics = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   static const _titles = ['Today', 'Splits', 'Progress'];
 
   void _select(int index) {
     if (index == _tab) return;
+    if (index == 2 && !_hasLoadedAnalytics) {
+      _hasLoadedAnalytics = true;
+    }
     Haptics.select();
     setState(() => _tab = index);
   }
@@ -95,7 +99,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       DailyTab(onNavigateToSplits: () => _select(1)),
                       const SplitsTab(),
-                      AnalyticsTab(onSelectSession: () => _select(0)),
+                      _hasLoadedAnalytics
+                          ? AnalyticsTab(onSelectSession: () => _select(0))
+                          : const SizedBox.shrink(),
                     ],
                   ),
                 ),

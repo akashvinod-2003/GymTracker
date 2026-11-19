@@ -100,6 +100,106 @@
   <script src="pwa-update.js"></script>
 </head>
 <body style="background-color: #0B1329; margin: 0; padding: 0;">
+  <!-- Instant HTML/CSS Loading Spinner & Logo -->
+  <div id="app-loader" style="position: fixed; inset: 0; z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; background-color: #0B1329; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; user-select: none; transition: opacity 0.3s ease-out;">
+    <style>
+      .loader-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+      }
+      .loader-visual {
+        position: relative;
+        width: 76px;
+        height: 76px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .loader-ring {
+        position: absolute;
+        inset: 0;
+        border: 3px solid rgba(45, 212, 191, 0.15);
+        border-top-color: #2DD4BF;
+        border-right-color: #14B8A6;
+        border-radius: 50%;
+        animation: loaderSpin 0.9s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+      }
+      .loader-img {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        box-shadow: 0 4px 20px rgba(45, 212, 191, 0.25);
+        object-fit: cover;
+        animation: loaderPulse 2s ease-in-out infinite;
+      }
+      .loader-brand {
+        color: #F8FAFC;
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: -0.4px;
+        margin: 0;
+      }
+      .loader-sub {
+        color: #94A3B8;
+        font-size: 12px;
+        font-weight: 500;
+        margin-top: -10px;
+        letter-spacing: 0.2px;
+      }
+      @keyframes loaderSpin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      @keyframes loaderPulse {
+        0%, 100% { transform: scale(1); opacity: 0.95; }
+        50% { transform: scale(1.04); opacity: 1; }
+      }
+    </style>
+    <div class="loader-container">
+      <div class="loader-visual">
+        <div class="loader-ring"></div>
+        <img class="loader-img" src="favicon_dark.png" alt="PulseFit Logo" onerror="this.style.display='none'">
+      </div>
+      <h2 class="loader-brand">PulseFit</h2>
+      <p class="loader-sub">Loading workout tracker...</p>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      var loaderRemoved = false;
+      function removeLoader() {
+        if (loaderRemoved) return;
+        loaderRemoved = true;
+        var loader = document.getElementById('app-loader');
+        if (loader) {
+          loader.style.opacity = '0';
+          loader.style.pointerEvents = 'none';
+          setTimeout(function() {
+            if (loader && loader.parentNode) {
+              loader.parentNode.removeChild(loader);
+            }
+          }, 320);
+        }
+      }
+
+      // Automatically remove loader on Flutter's first frame
+      window.addEventListener('flutter-first-frame', removeLoader);
+
+      // Fallback: If flutter-first-frame event happened before listener or after canvas initialization
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          if (document.querySelector('flutter-view') || document.querySelector('flt-glass-pane')) {
+            removeLoader();
+          }
+        }, 1500);
+      });
+      setTimeout(removeLoader, 7000);
+    })();
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

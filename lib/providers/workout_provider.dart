@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,12 +22,19 @@ class WorkoutProvider extends ChangeNotifier {
   List<BodyWeightEntry> _weightLogs = [];
   bool _isLoading = true;
 
+  StreamSubscription<List<SplitGroup>>? _splitsSub;
+  StreamSubscription<WorkoutSession?>? _sessionSub;
+  bool _isAnalyticsLoaded = false;
+  bool _isLoadingAnalytics = false;
+
   DateTime get currentDate => _currentDate;
   String get currentDateKey => DateFormat('yyyy-MM-dd').format(_currentDate);
   List<SplitGroup> get splitGroups => _splitGroups;
   Map<String, WorkoutSession> get sessions => _sessions;
   List<BodyWeightEntry> get weightLogs => _weightLogs;
   bool get isLoading => _isLoading;
+  bool get isAnalyticsLoaded => _isAnalyticsLoaded;
+  bool get isLoadingAnalytics => _isLoadingAnalytics;
 
   int get currentStreak => StreakService.calculateCurrentStreak(_sessions);
   int get bestStreak => StreakService.calculateBestStreak(_sessions);
@@ -36,34 +44,137 @@ class WorkoutProvider extends ChangeNotifier {
         WorkoutSession(date: currentDateKey, exercises: []);
   }
 
+  @override
+  void dispose() {
+    _cancelSubscriptions();
+    super.dispose();
+  }
+
+  void _cancelSubscriptions() {
+    _splitsSub?.cancel();
+    _splitsSub = null;
+    _sessionSub?.cancel();
+    _sessionSub = null;
+  }
+
   void updateUserId(String uid) {
     if (_userId != uid) {
       _userId = uid;
       _db = DatabaseService(userId: uid);
-      loadData();
+      _cancelSubscriptions();
+      _isAnalyticsLoaded = false;
+      loadStartupData();
     }
   }
 
-  Future<void> loadData() async {
-    _isLoading = true;
-    notifyListeners();
+  /// Backwards compatible alias for loadStartupData
+  Future<void> loadData() => loadStartupData();
 
+  /// Fast Cache-First Startup Loader:
+  /// 1. Reads local cache in < 5ms so UI displays immediately.
+  /// 2. Streams and fast-fetches users/{uid}/splits and users/{uid}/sessions/{currentDateKey} asynchronously.
+  /// 3. Never fetches full sessions history on startup (deferred to Analytics tab).
+  Future<void> loadStartupData() async {
     if (_db != null) {
-      _splitGroups = await _db!.getSplitGroups();
-      _sessions = await _db!.getAllSessions();
-      _weightLogs = await _db!.getWeightLogs();
+      // Step 1: Cache-First Instant Local Retrieval
+      final cachedSplits = await _db!.loadLocalSplits();
+      final cachedSessions = await _db!.loadLocalSessions();
+
+      if (cachedSplits.isNotEmpty || cachedSessions.isNotEmpty) {
+        _splitGroups = cachedSplits.isNotEmpty ? cachedSplits : SplitGroup.defaultGroups;
+        _sessions = cachedSessions;
+        _isLoading = false;
+        notifyListeners();
+      } else {
+        _isLoading = true;
+        notifyListeners();
+      }
     } else {
       _splitGroups = SplitGroup.defaultGroups;
       _sessions = {};
-      _weightLogs = [];
+      _isLoading = false;
+      notifyListeners();
+      return;
     }
 
     if (!_sessions.containsKey(currentDateKey)) {
       _sessions[currentDateKey] = WorkoutSession(date: currentDateKey, exercises: []);
     }
 
-    _isLoading = false;
-    notifyListeners();
+    // Step 2: Stream & Fast-Fetch Splits Asynchronously
+    _listenToSplits();
+
+    // Step 3: Stream & Fast-Fetch Current Session Asynchronously
+    _listenToCurrentSession();
+
+    // Safety timeout: ensure offline cold-start never hangs in loading state
+    Future.delayed(const Duration(milliseconds: 2500), () {
+      if (_isLoading) {
+        _isLoading = false;
+        if (_splitGroups.isEmpty) {
+          _splitGroups = SplitGroup.defaultGroups;
+        }
+        notifyListeners();
+      }
+    });
+  }
+
+  void _listenToSplits() {
+    if (_db == null) return;
+    _splitsSub?.cancel();
+    _splitsSub = _db!.streamSplitGroups().listen(
+      (groups) {
+        if (groups.isNotEmpty) {
+          _splitGroups = groups;
+          _isLoading = false;
+          notifyListeners();
+        }
+      },
+      onError: (e) {
+        debugPrint("Splits stream note: $e");
+        if (_isLoading) {
+          _isLoading = false;
+          notifyListeners();
+        }
+      },
+    );
+
+    // Fast one-shot query with 2.5s timeout fallback
+    _db!.getSplitGroups().then((groups) {
+      if (groups.isNotEmpty) {
+        _splitGroups = groups;
+        _isLoading = false;
+        notifyListeners();
+      }
+    }).catchError((_) {});
+  }
+
+  void _listenToCurrentSession() {
+    if (_db == null) return;
+    _sessionSub?.cancel();
+    final dateKey = currentDateKey;
+
+    _sessionSub = _db!.streamSession(dateKey).listen(
+      (session) {
+        if (session != null) {
+          _sessions[dateKey] = session;
+          _isLoading = false;
+          notifyListeners();
+        }
+      },
+      onError: (e) {
+        debugPrint("Session stream note: $e");
+      },
+    );
+
+    // Fast one-shot query with 2.5s timeout fallback
+    _db!.getSession(dateKey).then((session) {
+      if (session != null) {
+        _sessions[dateKey] = session;
+        _isLoading = false;
+        notifyListeners();
+      }
+    }).catchError((_) {});
   }
 
   void setDate(DateTime date) {
@@ -71,6 +182,47 @@ class WorkoutProvider extends ChangeNotifier {
     if (!_sessions.containsKey(currentDateKey)) {
       _sessions[currentDateKey] = WorkoutSession(date: currentDateKey, exercises: []);
     }
+    _listenToCurrentSession();
+    notifyListeners();
+  }
+
+  /// Lazy-Loaded: Only invoked when the user opens the Analytics tab.
+  /// Fetches full history of sessions and weight logs asynchronously without blocking startup.
+  Future<void> loadAnalyticsData() async {
+    if (_isAnalyticsLoaded || _isLoadingAnalytics) return;
+    _isLoadingAnalytics = true;
+    notifyListeners();
+
+    if (_db != null) {
+      // Cache-first for body weight logs
+      final localWeight = await _db!.loadLocalWeightLogs();
+      if (localWeight.isNotEmpty) {
+        _weightLogs = localWeight;
+        notifyListeners();
+      }
+
+      try {
+        final results = await Future.wait([
+          _db!.getAllSessions(),
+          _db!.getWeightLogs(),
+        ]);
+
+        final fetchedSessions = results[0] as Map<String, WorkoutSession>;
+        final fetchedWeights = results[1] as List<BodyWeightEntry>;
+
+        if (fetchedSessions.isNotEmpty) {
+          _sessions.addAll(fetchedSessions);
+        }
+        if (fetchedWeights.isNotEmpty) {
+          _weightLogs = fetchedWeights;
+        }
+      } catch (e) {
+        debugPrint("Analytics data load note: $e");
+      }
+    }
+
+    _isLoadingAnalytics = false;
+    _isAnalyticsLoaded = true;
     notifyListeners();
   }
 

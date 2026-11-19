@@ -28,7 +28,10 @@ class _AnalyticsTabState extends State<AnalyticsTab> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkMilestone();
+      if (mounted) {
+        context.read<WorkoutProvider>().loadAnalyticsData();
+        _checkMilestone();
+      }
     });
   }
 

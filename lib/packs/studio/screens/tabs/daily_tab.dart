@@ -6,6 +6,7 @@ import '../../theme/motion.dart';
 import '../../widgets/exercise_card.dart';
 import '../../widgets/hero_volume_card.dart';
 import '../../widgets/quick_entry_sheet.dart';
+import 'package:gym_tracker/widgets/daily_tab_skeleton.dart';
 
 /// Today: one job — log the sets in front of you, one-handed, between lifts.
 class DailyTab extends StatelessWidget {
@@ -47,6 +48,10 @@ class DailyTab extends StatelessWidget {
     final muscles = wp.muscleSetCountsForCurrentSession;
     final muscleOrder = muscles.keys.toList();
     final bottomInset = MediaQuery.paddingOf(context).bottom;
+
+    if (wp.isLoading && exercises.isEmpty) {
+      return const DailyTabSkeleton();
+    }
 
     return Stack(
       children: [

@@ -155,7 +155,24 @@ class SplitsTab extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // Splits Cards List
-                if (groups.isEmpty)
+                if (workoutProvider.isLoading && groups.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Column(
+                      children: List.generate(
+                        3,
+                        (i) => Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          height: 72,
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                else if (groups.isEmpty)
                   Center(
                     child: Container(
                       width: double.infinity,

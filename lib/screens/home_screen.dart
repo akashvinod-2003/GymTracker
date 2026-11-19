@@ -22,9 +22,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentTabIndex = 0;
+  bool _hasLoadedAnalytics = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   void _onTabSelected(int index) {
+    if (index == 2 && !_hasLoadedAnalytics) {
+      _hasLoadedAnalytics = true;
+    }
     setState(() {
       _currentTabIndex = index;
     });
@@ -265,9 +269,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         onNavigateToSplits: () => _onTabSelected(1),
                       ),
                       const SplitsTab(),
-                      AnalyticsTab(
-                        onSelectSession: () => _onTabSelected(0),
-                      ),
+                      _hasLoadedAnalytics
+                          ? AnalyticsTab(
+                              onSelectSession: () => _onTabSelected(0),
+                            )
+                          : const SizedBox.shrink(),
                     ],
                   ),
                 ),
