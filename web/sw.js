@@ -1,5 +1,5 @@
 /* PulseFit PWA Service Worker - Automatic Cache Busting & Updates */
-const CACHE_VERSION = 'pulsefit-v5-perfect';
+const CACHE_VERSION = 'pulsefit-v6';
 const CACHE_NAME = `pulsefit-cache-${CACHE_VERSION}`;
 
 // Pre-cached assets for instant offline PWA access
@@ -100,7 +100,7 @@ self.addEventListener('fetch', (event) => {
   // 2. HTML / Navigation requests: Network-First with Cache fallback
   if (request.mode === 'navigate' || pathname.endsWith('.html') || pathname === '/') {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-cache' })
         .then((response) => {
           if (response && response.status === 200) {
             const clone = response.clone();
@@ -119,9 +119,11 @@ self.addEventListener('fetch', (event) => {
 
   // 3. Flutter Core Bundles (main.dart.js, main.dart.wasm, main.dart.mjs, flutter_bootstrap.js, flutter.js):
   // Network-First with Cache fallback so updates load immediately
+  // Revalidate with the server (cache: 'no-cache'): these filenames carry no
+  // content hash, so the browser's HTTP cache must never answer on its own.
   if (pathname.endsWith('main.dart.js') || pathname.endsWith('main.dart.wasm') || pathname.endsWith('main.dart.mjs') || pathname.endsWith('flutter_bootstrap.js') || pathname.endsWith('flutter.js')) {
     event.respondWith(
-      fetch(request)
+      fetch(request, { cache: 'no-cache' })
         .then((response) => {
           if (response && response.status === 200) {
             const clone = response.clone();

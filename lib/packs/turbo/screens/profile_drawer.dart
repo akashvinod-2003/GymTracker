@@ -245,12 +245,6 @@ class ProfileDrawer extends StatelessWidget {
                           onTap: () => themeProvider.setThemePack(AppThemePack.studio),
                         ),
                         _ThemeOptionButton(
-                          title: 'Classic',
-                          icon: Icons.bolt_sharp,
-                          isSelected: themeProvider.themePack == AppThemePack.classic,
-                          onTap: () => themeProvider.setThemePack(AppThemePack.classic),
-                        ),
-                        _ThemeOptionButton(
                           title: 'Turbo',
                           icon: Icons.bolt_sharp,
                           isSelected: themeProvider.themePack == AppThemePack.turbo,

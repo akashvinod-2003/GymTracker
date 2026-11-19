@@ -226,6 +226,43 @@
     })();
   </script>
 
+  <!-- Resume guard: phones can drop the WebGL context Flutter draws into while
+       the PWA is in the background, leaving a black or blank screen on return.
+       On return, nudge Flutter to repaint; if the context was lost and not
+       restored, reload (the workout draft is saved locally, so nothing is lost). -->
+  <script>
+    (function () {
+      var lost = false;
+      var restored = false;
+      window.addEventListener('webglcontextlost', function () { lost = true; restored = false; }, true);
+      window.addEventListener('webglcontextrestored', function () { restored = true; }, true);
+
+      function onReturn() {
+        // A resize makes Flutter re-measure and redraw the whole frame.
+        requestAnimationFrame(function () { window.dispatchEvent(new Event('resize')); });
+        if (!lost) return;
+        setTimeout(function () {
+          if (lost && !restored) {
+            try {
+              var last = parseInt(sessionStorage.getItem('resume_reload_ts') || '0', 10);
+              if (Date.now() - last < 15000) return; // never loop
+              sessionStorage.setItem('resume_reload_ts', String(Date.now()));
+            } catch (e) {}
+            window.location.reload();
+          } else {
+            lost = false;
+          }
+        }, 1500);
+      }
+
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') onReturn();
+      });
+      window.addEventListener('pageshow', function (e) { if (e.persisted) onReturn(); });
+      window.addEventListener('focus', onReturn);
+    })();
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
