@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
+import 'package:gym_tracker/models/body_weight_entry.dart';
 import 'package:gym_tracker/models/exercise.dart';
 import 'package:gym_tracker/models/split_group.dart';
 import 'package:gym_tracker/models/workout_session.dart';
@@ -68,7 +70,10 @@ Future<void> _pump(
   required ThemeData dark,
   required Brightness brightness,
 }) async {
-  tester.view.physicalSize = const Size(360, 800);
+  // 345 wide leaves headroom under the 360px target: Roboto stands in for the
+  // slightly wider Plus Jakarta Sans. (ExerciseCard set rows need ~332px.)
+  // Tall enough that lazy lists lay out every child.
+  tester.view.physicalSize = const Size(345, 3000);
   tester.view.devicePixelRatio = 1;
   tester.platformDispatcher.platformBrightnessTestValue = brightness;
   addTearDown(tester.view.reset);
@@ -184,6 +189,24 @@ void main() {
       // Provider not started yet: isLoading stays true, skeleton shows.
       await _pump(tester,
           child: pack.value.$3(), wp: WorkoutProvider(), light: light, dark: dark, brightness: Brightness.light);
+    });
+
+    testWidgets('dashboard with loaded history fits 360px: ${pack.key}', (tester) async {
+      final wp = _provider(withData: true);
+      final today = wp.currentDate;
+      for (final back in [1, 3, 5]) {
+        final key = DateFormat('yyyy-MM-dd').format(today.subtract(Duration(days: back)));
+        wp.sessions[key] = WorkoutSession(date: key, exercises: [_exercise('h$back')]);
+      }
+      wp.weightLogs.addAll([
+        BodyWeightEntry(id: 'w1', weightKg: 82.4, date: today.subtract(const Duration(days: 30))),
+        BodyWeightEntry(id: 'w2', weightKg: 80.1, date: today),
+      ]);
+      await wp.loadAnalyticsData();
+      await _pump(tester, child: pack.value.$3(), wp: wp, light: light, dark: dark, brightness: Brightness.dark);
+      expect(find.text('80.1 kg'), findsOneWidget);
+      expect(find.textContaining('since start'), findsOneWidget);
+      expect(find.text('Tap to load'), findsNothing);
     });
 
     testWidgets('dashboard opens workout tab: ${pack.key}', (tester) async {
