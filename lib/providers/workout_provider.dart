@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -38,6 +39,10 @@ class WorkoutProvider extends ChangeNotifier {
 
   int get currentStreak => StreakService.calculateCurrentStreak(_sessions);
   int get bestStreak => StreakService.calculateBestStreak(_sessions);
+
+  WorkoutSession? _activeWorkoutDraft;
+  WorkoutSession? get activeWorkoutDraft => _activeWorkoutDraft;
+  bool get hasActiveWorkoutDraft => _activeWorkoutDraft != null && _activeWorkoutDraft!.exercises.isNotEmpty;
 
   WorkoutSession get currentSession {
     return _sessions[currentDateKey] ??
@@ -106,6 +111,9 @@ class WorkoutProvider extends ChangeNotifier {
 
     // Step 3: Stream & Fast-Fetch Current Session Asynchronously
     _listenToCurrentSession();
+
+    // Step 4: Restore active workout draft if one was in progress today
+    loadActiveWorkoutDraft();
 
     // Safety timeout: ensure offline cold-start never hangs in loading state
     Future.delayed(const Duration(milliseconds: 2500), () {
@@ -447,18 +455,48 @@ class WorkoutProvider extends ChangeNotifier {
   }
 
   // ----------------------------------------------------
+  // DRAFT WORKOUT PERSISTENCE (Requirement 6)
+  // ----------------------------------------------------
+
+
+
+  // ----------------------------------------------------
   // SPLITS, BODY PARTS & EXERCISES HIERARCHY
   // ----------------------------------------------------
 
+  /// Returns the split assigned to a given weekday from configured splits.
+  SplitGroup? getScheduledSplitForDate(DateTime date) {
+    for (final group in _splitGroups) {
+      if (group.isScheduledForDateTime(date)) {
+        return group;
+      }
+    }
+    return null;
+  }
+
   /// Resolves the relevant SplitGroup for a given date:
-  /// 1. If exercises exist for that session, matches the split by exercise group.
-  /// 2. If no workout yet or scheduled, matches the split by day-of-week assignment.
+  /// 1. If completed session has a splitId, matches that split directly.
+  /// 2. For scheduled workouts without a completed session, matches split by day-of-week assignment (Mon..Sun).
+  /// 3. Fallback: matches split by exercise groups.
   SplitGroup? getSplitForDate(DateTime date) {
     final dateKey = DateFormat('yyyy-MM-dd').format(date);
     final session = _sessions[dateKey];
+    final hasCompleted = session != null && session.exercises.any((e) => e.sets.isNotEmpty);
 
-    // Priority 1: Check logged exercises in the session
-    if (session != null && session.exercises.isNotEmpty) {
+    // Priority 1: Match by session.splitId if completed
+    if (hasCompleted && session.splitId != null && session.splitId!.isNotEmpty) {
+      final match = _splitGroups.where((g) => g.id == session.splitId);
+      if (match.isNotEmpty) return match.first;
+    }
+
+    // Priority 2: Check assigned days of week (Mon..Sun) - scheduled split for that weekday
+    final scheduled = getScheduledSplitForDate(date);
+    if (scheduled != null) {
+      return scheduled;
+    }
+
+    // Priority 3: Fallback check logged exercise groups for legacy sessions
+    if (hasCompleted && session.exercises.isNotEmpty) {
       for (final ex in session.exercises) {
         if (ex.group.isNotEmpty && ex.group != 'General' && ex.group != 'Custom') {
           final match = _splitGroups.where((g) => g.name.toLowerCase() == ex.group.toLowerCase());
@@ -467,18 +505,101 @@ class WorkoutProvider extends ChangeNotifier {
       }
     }
 
-    // Priority 2: Check assigned days of week (Mon..Sun)
-    for (final group in _splitGroups) {
-      if (group.isScheduledForDateTime(date)) {
-        return group;
+    return null;
+  }
+
+  /// Returns the full display split name for a given date (for detailed views / banners).
+  /// Requirement 1:
+  /// - For completed workouts, display "WorkoutSession.splitName" (preserving historical name).
+  /// - For scheduled workouts without a completed session, display split assigned to weekday.
+  /// - Does not depend exclusively on exercise group names.
+  /// - Renamed splits display current name for scheduled dates.
+  String getSplitNameForDate(DateTime date, {WorkoutSession? session}) {
+    final dateKey = DateFormat('yyyy-MM-dd').format(date);
+    final resolvedSession = session ?? _sessions[dateKey];
+    final hasCompletedWorkout = resolvedSession != null && resolvedSession.exercises.any((e) => e.sets.isNotEmpty);
+
+    if (hasCompletedWorkout) {
+      // 1. Preserved historical splitName on the completed session
+      if (resolvedSession.splitName != null && resolvedSession.splitName!.trim().isNotEmpty) {
+        return resolvedSession.splitName!.trim();
       }
+      // 2. Lookup via splitId
+      if (resolvedSession.splitId != null && resolvedSession.splitId!.isNotEmpty) {
+        final match = _splitGroups.where((g) => g.id == resolvedSession.splitId);
+        if (match.isNotEmpty) return match.first.name;
+      }
+      // 3. Fallback to exercise groups if legacy
+      final groups = resolvedSession.exercises
+          .map((e) => e.group)
+          .where((g) => g.isNotEmpty && g != 'General' && g != 'Custom')
+          .toSet()
+          .toList();
+      if (groups.isNotEmpty) return groups.join(' & ');
+
+      // 4. Fallback to scheduled split
+      final scheduled = getScheduledSplitForDate(date);
+      if (scheduled != null) return scheduled.name;
+
+      return 'Completed Workout';
     }
 
-    return null;
+    // Scheduled workouts without a completed session: display split assigned to that weekday
+    final scheduled = getScheduledSplitForDate(date);
+    if (scheduled != null) {
+      return scheduled.name;
+    }
+
+    if (date.weekday == DateTime.sunday) {
+      return 'Rest & Recovery Day';
+    }
+    return 'Rest / Off Day';
+  }
+
+  /// Returns the compact short abbreviation for calendar day cells / small badges.
+  /// Requirement 9: Display short name where compact layout requires it.
+  String getSplitShortNameForDate(DateTime date, {WorkoutSession? session}) {
+    final dateKey = DateFormat('yyyy-MM-dd').format(date);
+    final resolvedSession = session ?? _sessions[dateKey];
+    final hasCompletedWorkout = resolvedSession != null && resolvedSession.exercises.any((e) => e.sets.isNotEmpty);
+
+    if (hasCompletedWorkout) {
+      if (resolvedSession.splitShortName != null && resolvedSession.splitShortName!.trim().isNotEmpty) {
+        return resolvedSession.splitShortName!.trim().toUpperCase();
+      }
+      if (resolvedSession.splitId != null && resolvedSession.splitId!.isNotEmpty) {
+        final match = _splitGroups.where((g) => g.id == resolvedSession.splitId);
+        if (match.isNotEmpty) return match.first.effectiveShortName;
+      }
+      if (resolvedSession.splitName != null && resolvedSession.splitName!.trim().isNotEmpty) {
+        final name = resolvedSession.splitName!.trim();
+        return name.length <= 6 ? name.toUpperCase() : name.substring(0, 4).toUpperCase();
+      }
+      final groups = resolvedSession.exercises
+          .map((e) => e.group)
+          .where((g) => g.isNotEmpty && g != 'General' && g != 'Custom')
+          .toList();
+      if (groups.isNotEmpty) {
+        final g = groups.first;
+        return g.length <= 5 ? g.toUpperCase() : g.substring(0, 4).toUpperCase();
+      }
+      return 'WOD';
+    }
+
+    final scheduled = getScheduledSplitForDate(date);
+    if (scheduled != null) {
+      return scheduled.effectiveShortName;
+    }
+
+    if (date.weekday == DateTime.sunday) {
+      return 'REST';
+    }
+    return '';
   }
 
   Future<void> addSplitGroup({
     required String name,
+    String? shortName,
     required String desc,
     Map<String, List<String>>? parts,
     List<String>? days,
@@ -488,6 +609,7 @@ class WorkoutProvider extends ChangeNotifier {
     final newGroup = SplitGroup(
       id: 'grp-${DateTime.now().millisecondsSinceEpoch}-${_uuid.v4().substring(0, 4)}',
       name: name,
+      shortName: shortName ?? '',
       desc: desc,
       parts: parts ?? {},
       days: days ?? [],
@@ -561,6 +683,7 @@ class WorkoutProvider extends ChangeNotifier {
     final duplicated = SplitGroup(
       id: newId,
       name: newName,
+      shortName: target.shortName,
       desc: target.desc,
       parts: clonedParts,
       days: List<String>.from(target.days),
@@ -861,13 +984,88 @@ class WorkoutProvider extends ChangeNotifier {
     return matching.first;
   }
 
+  bool _isFinishingWorkout = false;
+  bool get isFinishingWorkout => _isFinishingWorkout;
+
+  Future<void> loadActiveWorkoutDraft() async {
+    if (_db != null) {
+      final draft = await _db!.loadActiveWorkoutDraft();
+      if (draft != null) {
+        _activeWorkoutDraft = draft;
+        notifyListeners();
+      }
+    }
+  }
+
+  void startActiveWorkout(SplitGroup split, {String? dateKey}) {
+    final key = dateKey ?? currentDateKey;
+    _activeWorkoutDraft = WorkoutSession(
+      date: key,
+      splitId: split.id,
+      splitName: split.name,
+      splitShortName: split.effectiveShortName,
+      exercises: [],
+    );
+    notifyListeners();
+    if (_db != null) {
+      _db!.saveActiveWorkoutDraft(_activeWorkoutDraft!);
+    }
+  }
+
+  void updateActiveWorkoutExercises(List<Exercise> exercises) {
+    if (_activeWorkoutDraft != null) {
+      _activeWorkoutDraft = _activeWorkoutDraft!.copyWith(exercises: exercises);
+      notifyListeners();
+      if (_db != null) {
+        _db!.saveActiveWorkoutDraft(_activeWorkoutDraft!);
+      }
+    }
+  }
+
+  Future<void> saveActiveWorkoutDraft(WorkoutSession session) async {
+    _activeWorkoutDraft = session;
+    notifyListeners();
+    if (_db != null) {
+      await _db!.saveActiveWorkoutDraft(session);
+    }
+  }
+
+  Future<void> clearActiveWorkoutDraft() async {
+    _activeWorkoutDraft = null;
+    notifyListeners();
+    if (_db != null) {
+      await _db!.clearActiveWorkoutDraft();
+    }
+  }
+
+  Future<void> discardActiveWorkout() async {
+    await clearActiveWorkoutDraft();
+  }
+
   /// Atomically updates today's session exercises and split info, and saves to database.
-  Future<void> saveWorkoutSession(WorkoutSession session) async {
-    _sessions[session.date] = session;
+  Future<bool> saveWorkoutSession(WorkoutSession session) async {
+    if (_isFinishingWorkout) return false;
+    _isFinishingWorkout = true;
     notifyListeners();
 
-    if (_db != null) {
-      await _db!.saveSession(session);
+    try {
+      _sessions[session.date] = session;
+      _activeWorkoutDraft = null;
+      notifyListeners();
+
+      if (_db != null) {
+        await Future.wait([
+          _db!.saveSession(session),
+          _db!.clearActiveWorkoutDraft(),
+        ]);
+      }
+      return true;
+    } catch (e) {
+      debugPrint("Error saving workout session: $e");
+      return false;
+    } finally {
+      _isFinishingWorkout = false;
+      notifyListeners();
     }
   }
 }

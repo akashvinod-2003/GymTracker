@@ -366,6 +366,7 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
 
   void _promptDuplicateAbove(BuildContext context, WorkoutProvider provider, bool isDark) {
     final nameController = TextEditingController(text: '${widget.group.name} (Copy)');
+    final shortNameController = TextEditingController(text: widget.group.effectiveShortName);
 
     showDialog(
       context: context,
@@ -422,6 +423,38 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               ),
             ),
+            const SizedBox(height: 10),
+            Text(
+              'SHORT NAME / ABBREVIATION',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w800,
+                color: isDark ? AppTheme.darkTextSecondary : const Color(0xFF64748B),
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: shortNameController,
+              maxLength: 8,
+              textCapitalization: TextCapitalization.characters,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+              ),
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: 'e.g. PUSH',
+                filled: true,
+                fillColor: isDark ? const Color(0xFF162344) : const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              ),
+            ),
           ],
         ),
         actions: [
@@ -433,12 +466,19 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
             onPressed: () async {
               final newName = nameController.text.trim();
               if (newName.isEmpty) return;
+              String shortN = shortNameController.text.trim().toUpperCase();
+              if (shortN.isEmpty) {
+                shortN = newName.length <= 6 ? newName.toUpperCase() : newName.substring(0, 5).toUpperCase();
+              }
               Navigator.pop(ctx);
-              await provider.duplicateSplitAbove(widget.group.id, customName: newName);
+              final duplicated = await provider.duplicateSplitAbove(widget.group.id, customName: newName);
+              if (duplicated != null && shortN.isNotEmpty) {
+                await provider.updateSplitGroup(duplicated.copyWith(shortName: shortN));
+              }
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Inserted "$newName" directly above "${widget.group.name}"'),
+                    content: Text('Inserted "$newName [$shortN]" directly above "${widget.group.name}"'),
                     behavior: SnackBarBehavior.floating,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
@@ -468,9 +508,7 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
     final subColor = isDark ? AppTheme.darkTextSecondary : const Color(0xFF64748B);
 
     final pastel = AppTheme.pastelStyles[widget.index % AppTheme.pastelStyles.length];
-    final initials = widget.group.name.length >= 2
-        ? widget.group.name.substring(0, 2).toUpperCase()
-        : widget.group.name.toUpperCase();
+    final initials = widget.group.effectiveShortName;
 
     final parts = widget.group.partNames;
 
@@ -488,8 +526,9 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
           Row(
             children: [
               Container(
-                width: 40,
+                width: 46,
                 height: 40,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
                 decoration: BoxDecoration(
                   color: pastel.bg(isDark),
                   borderRadius: BorderRadius.circular(14),
@@ -498,9 +537,11 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                 alignment: Alignment.center,
                 child: Text(
                   initials,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.plusJakartaSans(
                     color: pastel.text(isDark),
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -510,13 +551,38 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.group.name,
-                      style: GoogleFonts.plusJakartaSans(
-                        color: titleColor,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            widget.group.name,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: titleColor,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF0F3635) : AppTheme.tealBg,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF134E4A) : const Color(0xFF99F6E4),
+                            ),
+                          ),
+                          child: Text(
+                            widget.group.effectiveShortName,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     Text(
                       '${parts.length} body parts configured',

@@ -1,6 +1,7 @@
 class SplitGroup {
   final String id;
   String name;
+  String shortName;
   String desc;
   // Map of Body Part Name -> List of Exercise Names in that part
   Map<String, List<String>> parts;
@@ -13,6 +14,7 @@ class SplitGroup {
   SplitGroup({
     required this.id,
     required this.name,
+    this.shortName = '',
     this.desc = '',
     required this.parts,
     this.days = const [],
@@ -20,6 +22,25 @@ class SplitGroup {
     this.defaultReps = 10,
     this.order = 0,
   });
+
+  /// Computes a clean 2 to 6 character abbreviation if shortName is not set.
+  String get effectiveShortName {
+    final s = shortName.trim();
+    if (s.isNotEmpty) return s.toUpperCase();
+
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return 'SPLIT';
+    if (trimmed.length <= 6) return trimmed.toUpperCase();
+
+    // Check for multiple words: e.g. "Push Pull Legs" -> "PPL", "Upper Body" -> "UB"
+    final words = trimmed.split(RegExp(r'\s+'));
+    if (words.length > 1) {
+      final initials = words.map((w) => w.isNotEmpty ? w[0].toUpperCase() : '').join('');
+      if (initials.length >= 2 && initials.length <= 6) return initials;
+    }
+
+    return trimmed.substring(0, trimmed.length.clamp(0, 5)).toUpperCase();
+  }
 
   List<String> get partNames => parts.keys.toList();
 
@@ -50,6 +71,7 @@ class SplitGroup {
     return {
       'id': id,
       'name': name,
+      'shortName': shortName,
       'desc': desc,
       'parts': parts.map((key, list) => MapEntry(key, list)),
       'days': days,
@@ -87,6 +109,7 @@ class SplitGroup {
     return SplitGroup(
       id: map['id'] as String? ?? '',
       name: map['name'] as String? ?? '',
+      shortName: map['shortName'] as String? ?? '',
       desc: map['desc'] as String? ?? '',
       parts: parsedParts,
       days: parsedDays,
@@ -99,6 +122,7 @@ class SplitGroup {
   SplitGroup copyWith({
     String? id,
     String? name,
+    String? shortName,
     String? desc,
     Map<String, List<String>>? parts,
     List<String>? days,
@@ -109,6 +133,7 @@ class SplitGroup {
     return SplitGroup(
       id: id ?? this.id,
       name: name ?? this.name,
+      shortName: shortName ?? this.shortName,
       desc: desc ?? this.desc,
       parts: parts ?? Map<String, List<String>>.from(this.parts),
       days: days ?? List<String>.from(this.days),

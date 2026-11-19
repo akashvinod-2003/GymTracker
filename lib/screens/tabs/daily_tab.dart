@@ -55,6 +55,83 @@ class DailyTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Active Workout Draft Banner (Resume unfinished live session)
+              if (workoutProvider.hasActiveWorkoutDraft) ...[
+                Container(
+                  margin: const EdgeInsets.only(bottom: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isDark
+                          ? [const Color(0xFF0F3635), const Color(0xFF162344)]
+                          : [const Color(0xFFCCFBF1), const Color(0xFFE0F2FE)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: (isDark ? AppTheme.tealLight : AppTheme.tealPrimary).withValues(alpha: 0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.play_arrow_rounded,
+                          color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'ACTIVE WORKOUT IN PROGRESS',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            Text(
+                              workoutProvider.activeWorkoutDraft?.splitName ?? 'In-Gym Session',
+                              style: GoogleFonts.plusJakartaSans(
+                                color: titleColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => TodaysWorkoutFlowScreen.start(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                          foregroundColor: isDark ? Colors.black : Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: Text(
+                          'Resume',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               // Hero Volume Card (with Live Streak Counter & IST)
               HeroVolumeCard(
                 volume: session.totalVolume,
@@ -126,6 +203,27 @@ class DailyTab extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (activeSplit != null) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF162344) : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isDark ? const Color(0xFF23355C) : const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              child: Text(
+                                activeSplit.effectiveShortName,
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       Row(

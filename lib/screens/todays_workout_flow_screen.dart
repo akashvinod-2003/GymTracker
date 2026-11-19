@@ -15,10 +15,12 @@ import '../theme/app_theme.dart';
 import '../widgets/add_split_dialog.dart';
 import '../widgets/last_workout_sheet.dart';
 
-/// Guided 3-step workout entry workflow for today's session:
-/// Step 1: Select Workout Split
-/// Step 2: Review Last Workout for Selected Split
-/// Step 3: Enter Today's Workout
+/// Redesigned Guided Workout Flow & Real-Time Tracking Experience:
+/// - Step 1: Explicitly select a workout split
+/// - Step 2: Review previous session performance & targets
+/// - Step 3: Live interactive workout tracking: pick body parts, add exercises,
+///           log weight/reps set-by-set during exercise, confirm completion explicitly,
+///           persist drafts automatically, and confirm before finishing.
 class TodaysWorkoutFlowScreen extends StatefulWidget {
   final String? initialSplitId;
 
@@ -38,15 +40,22 @@ class TodaysWorkoutFlowScreen extends StatefulWidget {
 
 class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
   final _uuid = const Uuid();
-  int _currentStep = 1; // 1: Select Split, 2: Review Last, 3: Enter Workout
+
+  // Workflow steps:
+  // 1: Select Split
+  // 2: Review Last Workout
+  // 3: Live Actual Workout Tracking
+  int _currentStep = 1;
 
   SplitGroup? _selectedSplit;
   WorkoutSession? _lastSession;
   SessionProgressComparison? _progressComparison;
 
-  // Working copy of today's exercises during Step 3
-  List<Exercise> _todayExercises = [];
+  // Active workout tracking state (Step 3)
+  List<Exercise> _activeExercises = [];
+  String? _selectedBodyPart;
   bool _isInitialized = false;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -60,32 +69,41 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
     final wp = Provider.of<WorkoutProvider>(context, listen: false);
     await wp.ensureHistoryLoaded();
 
-    final today = StreakService.nowIST;
-    final scheduledSplit = wp.getSplitForDate(today);
+    // Check if an active workout draft is already in progress for today
+    final draft = wp.activeWorkoutDraft;
+    if (draft != null && (draft.exercises.isNotEmpty || draft.splitId != null)) {
+      // Restore from draft directly into Step 3
+      SplitGroup? matchingSplit;
+      if (draft.splitId != null) {
+        matchingSplit = wp.splitGroups.where((g) => g.id == draft.splitId).firstOrNull;
+      }
+      matchingSplit ??= wp.splitGroups.where((g) => g.name == draft.splitName).firstOrNull;
+      matchingSplit ??= wp.splitGroups.isNotEmpty ? wp.splitGroups.first : null;
 
-    SplitGroup? initial;
-    if (widget.initialSplitId != null) {
-      initial = wp.splitGroups.firstWhere(
-        (g) => g.id == widget.initialSplitId,
-        orElse: () => wp.splitGroups.isNotEmpty ? wp.splitGroups.first : SplitGroup.defaultGroups.first,
-      );
-    } else if (scheduledSplit != null) {
-      initial = scheduledSplit;
-    } else if (wp.currentSession.splitId != null) {
-      initial = wp.splitGroups.firstWhere(
-        (g) => g.id == wp.currentSession.splitId,
-        orElse: () => wp.splitGroups.isNotEmpty ? wp.splitGroups.first : SplitGroup.defaultGroups.first,
-      );
-    } else if (wp.splitGroups.isNotEmpty) {
-      initial = wp.splitGroups.first;
+      _selectedSplit = matchingSplit;
+      _activeExercises = draft.exercises.map((e) => e.copyWith()).toList();
+      _selectedBodyPart = matchingSplit?.partNames.isNotEmpty == true ? matchingSplit!.partNames.first : null;
+
+      if (matchingSplit != null) {
+        _loadLastSessionForSplit(matchingSplit);
+      }
+
+      setState(() {
+        _currentStep = 3; // Resume active workout
+        _isInitialized = true;
+      });
+      return;
     }
 
-    // Load existing exercises from today's session if any
-    final existingSession = wp.currentSession;
-    _todayExercises = existingSession.exercises.map((e) => e.copyWith()).toList();
+    // New workout flow starting from Step 1
+    SplitGroup? initial;
+    if (widget.initialSplitId != null) {
+      initial = wp.splitGroups.where((g) => g.id == widget.initialSplitId).firstOrNull;
+    }
 
     setState(() {
       _selectedSplit = initial;
+      _currentStep = 1; // Always start at Step 1 for explicit selection
       _isInitialized = true;
     });
 
@@ -130,15 +148,47 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
     });
   }
 
-  // --- Step 3 Exercise Manipulation ---
+  void _startActualWorkout() {
+    if (_selectedSplit == null) return;
+    final wp = Provider.of<WorkoutProvider>(context, listen: false);
 
-  void _addExerciseFromSplit(String exerciseName, String partName) {
-    // Avoid duplicate addition if already added today
-    final alreadyExists = _todayExercises.any((e) => e.name.trim().toLowerCase() == exerciseName.trim().toLowerCase());
+    _selectedBodyPart = _selectedSplit!.partNames.isNotEmpty ? _selectedSplit!.partNames.first : null;
+
+    // Initialize active workout draft if empty
+    if (_activeExercises.isEmpty) {
+      wp.startActiveWorkout(_selectedSplit!);
+    }
+
+    setState(() {
+      _currentStep = 3;
+    });
+  }
+
+  // --- Draft Auto-Persistence ---
+
+  void _syncDraft() {
+    if (_selectedSplit == null) return;
+    final wp = Provider.of<WorkoutProvider>(context, listen: false);
+    final session = WorkoutSession(
+      date: StreakService.todayKeyIST,
+      splitId: _selectedSplit!.id,
+      splitName: _selectedSplit!.name,
+      splitShortName: _selectedSplit!.effectiveShortName,
+      exercises: _activeExercises,
+    );
+    wp.saveActiveWorkoutDraft(session);
+  }
+
+  // --- Step 3 Live Exercise & Set Tracking ---
+
+  void _addExerciseToWorkout(String exerciseName, String partName) {
+    final alreadyExists = _activeExercises.any(
+      (e) => e.name.trim().toLowerCase() == exerciseName.trim().toLowerCase(),
+    );
     if (alreadyExists) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$exerciseName is already in today\'s workout.'),
+          content: Text('$exerciseName is already in this workout.'),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 1),
         ),
@@ -146,40 +196,40 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
       return;
     }
 
-    final targetSets = _selectedSplit?.defaultSets ?? 3;
-    final targetReps = _selectedSplit?.defaultReps ?? 10;
-
-    // Check last workout for weight recommendation
-    double recommendedWeight = 20.0;
+    // Determine suggestion from previous workout
+    double suggestedWeight = 20.0;
+    int suggestedReps = _selectedSplit?.defaultReps ?? 10;
     if (_lastSession != null) {
       for (var ex in _lastSession!.exercises) {
         if (ex.name.trim().toLowerCase() == exerciseName.trim().toLowerCase() && ex.sets.isNotEmpty) {
-          recommendedWeight = ex.sets.last.weight;
+          suggestedWeight = ex.sets.last.weight;
+          suggestedReps = ex.sets.last.reps;
           break;
         }
       }
     }
 
-    final newEx = Exercise(
+    // Start with 1 set: NOT completed automatically
+    final newExercise = Exercise(
       id: 'ex-${DateTime.now().millisecondsSinceEpoch}-${_uuid.v4().substring(0, 4)}',
       name: exerciseName,
       group: _selectedSplit?.name ?? 'Custom',
       part: partName,
       equipment: 'Dumbbell',
-      sets: List.generate(
-        targetSets,
-        (index) => WorkoutSet(
-          setNumber: index + 1,
-          weight: recommendedWeight,
-          reps: targetReps,
-          completed: index == 0,
+      sets: [
+        WorkoutSet(
+          setNumber: 1,
+          weight: suggestedWeight,
+          reps: suggestedReps,
+          completed: false, // Must be confirmed explicitly by user
         ),
-      ),
+      ],
     );
 
     setState(() {
-      _todayExercises.add(newEx);
+      _activeExercises.add(newExercise);
     });
+    _syncDraft();
   }
 
   void _promptAddCustomExercise() {
@@ -187,7 +237,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
     final weightCtrl = TextEditingController(text: '20');
     final repsCtrl = TextEditingController(text: '10');
     String equipment = 'Dumbbell';
-    String part = _selectedSplit?.partNames.isNotEmpty == true ? _selectedSplit!.partNames.first : 'General';
+    String part = _selectedBodyPart ?? (_selectedSplit?.partNames.isNotEmpty == true ? _selectedSplit!.partNames.first : 'General');
 
     showDialog(
       context: context,
@@ -195,18 +245,23 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
         final isDark = Provider.of<ThemeProvider>(ctx).isDarkMode(ctx);
         final bg = isDark ? AppTheme.darkCard : Colors.white;
         final titleCol = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+
         return StatefulBuilder(
           builder: (context, setDlgState) {
             return AlertDialog(
               backgroundColor: bg,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-              title: Text('Add Custom Exercise', style: GoogleFonts.plusJakartaSans(color: titleCol, fontWeight: FontWeight.w800, fontSize: 16)),
+              title: Text(
+                'Add Exercise to $part',
+                style: GoogleFonts.plusJakartaSans(color: titleCol, fontWeight: FontWeight.w800, fontSize: 16),
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextField(
                       controller: nameCtrl,
+                      autofocus: true,
                       decoration: const InputDecoration(labelText: 'Exercise Name', hintText: 'e.g. Incline Bench Press'),
                     ),
                     const SizedBox(height: 12),
@@ -216,7 +271,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                           child: TextField(
                             controller: weightCtrl,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(labelText: 'Weight (kg)'),
+                            decoration: const InputDecoration(labelText: 'Starting Weight (kg)'),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -224,7 +279,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                           child: TextField(
                             controller: repsCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(labelText: 'Reps'),
+                            decoration: const InputDecoration(labelText: 'Target Reps'),
                           ),
                         ),
                       ],
@@ -250,12 +305,13 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                       part: part,
                       equipment: equipment,
                       sets: [
-                        WorkoutSet(setNumber: 1, weight: w, reps: r, completed: true),
+                        WorkoutSet(setNumber: 1, weight: w, reps: r, completed: false),
                       ],
                     );
                     setState(() {
-                      _todayExercises.add(newEx);
+                      _activeExercises.add(newEx);
                     });
+                    _syncDraft();
                     Navigator.pop(ctx);
                   },
                   child: const Text('Add Exercise'),
@@ -269,40 +325,72 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
   }
 
   void _addSetToExercise(int exerciseIndex) {
-    final ex = _todayExercises[exerciseIndex];
+    final ex = _activeExercises[exerciseIndex];
     final lastSet = ex.sets.isNotEmpty ? ex.sets.last : null;
     final newSet = WorkoutSet(
       setNumber: ex.sets.length + 1,
       weight: lastSet?.weight ?? 20.0,
       reps: lastSet?.reps ?? 10,
-      completed: false,
+      completed: false, // Explicit confirmation required
     );
     setState(() {
       ex.sets.add(newSet);
     });
+    _syncDraft();
   }
 
   void _removeSetFromExercise(int exerciseIndex, int setIndex) {
     setState(() {
-      _todayExercises[exerciseIndex].sets.removeAt(setIndex);
-      // Re-number remaining sets
-      for (int i = 0; i < _todayExercises[exerciseIndex].sets.length; i++) {
-        _todayExercises[exerciseIndex].sets[i] = _todayExercises[exerciseIndex].sets[i].copyWith(setNumber: i + 1);
+      _activeExercises[exerciseIndex].sets.removeAt(setIndex);
+      for (int i = 0; i < _activeExercises[exerciseIndex].sets.length; i++) {
+        _activeExercises[exerciseIndex].sets[i] = _activeExercises[exerciseIndex].sets[i].copyWith(setNumber: i + 1);
       }
     });
+    _syncDraft();
+  }
+
+  void _toggleSetCompletion(int exerciseIndex, int setIndex) {
+    setState(() {
+      final cur = _activeExercises[exerciseIndex].sets[setIndex];
+      _activeExercises[exerciseIndex].sets[setIndex] = cur.copyWith(completed: !cur.completed);
+    });
+    _syncDraft();
+  }
+
+  void _adjustWeight(int exerciseIndex, int setIndex, double delta) {
+    setState(() {
+      final cur = _activeExercises[exerciseIndex].sets[setIndex];
+      final newWeight = (cur.weight + delta).clamp(0.0, 500.0);
+      _activeExercises[exerciseIndex].sets[setIndex] = cur.copyWith(weight: newWeight);
+    });
+    _syncDraft();
+  }
+
+  void _adjustReps(int exerciseIndex, int setIndex, int delta) {
+    setState(() {
+      final cur = _activeExercises[exerciseIndex].sets[setIndex];
+      final newReps = (cur.reps + delta).clamp(1, 100);
+      _activeExercises[exerciseIndex].sets[setIndex] = cur.copyWith(reps: newReps);
+    });
+    _syncDraft();
   }
 
   void _removeExercise(int index) {
     setState(() {
-      _todayExercises.removeAt(index);
+      _activeExercises.removeAt(index);
     });
+    _syncDraft();
   }
 
-  Future<void> _finishAndSaveWorkout() async {
-    if (_todayExercises.isEmpty) {
+  // --- Finish Workout & Confirmation ---
+
+  Future<void> _confirmAndFinishWorkout() async {
+    if (_isSaving) return;
+
+    if (_activeExercises.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please add at least one exercise before saving today\'s workout.'),
+          content: const Text('Add at least one exercise before finishing the workout.'),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -310,41 +398,128 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
       return;
     }
 
-    final wp = Provider.of<WorkoutProvider>(context, listen: false);
-    final todayKey = StreakService.todayKeyIST;
+    final completedSetsCount = _activeExercises.fold(0, (sum, e) => sum + e.completedSetsCount);
+    final totalSetsCount = _activeExercises.fold(0, (sum, e) => sum + e.sets.length);
+    final volume = _activeExercises.fold(0.0, (sum, e) => sum + e.totalVolume);
 
-    final updatedSession = WorkoutSession(
-      date: todayKey,
-      splitId: _selectedSplit?.id,
-      splitName: _selectedSplit?.name,
-      exercises: _todayExercises,
-    );
+    final isDark = Provider.of<ThemeProvider>(context, listen: false).isDarkMode(context);
 
-    await wp.saveWorkoutSession(updatedSession);
-
-    if (!mounted) return;
-    Navigator.of(context).pop();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
+    final shouldFinish = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? AppTheme.darkCard : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Row(
           children: [
-            const Icon(Icons.check_circle_rounded, color: Color(0xFF34D399), size: 22),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Today\'s ${_selectedSplit?.name ?? "Workout"} saved! 🔥 ${wp.currentStreak} Day Streak.',
-                style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
-              ),
+            const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 24),
+            const SizedBox(width: 8),
+            Text(
+              'Finish Workout?',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 17),
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF0F172A),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        duration: const Duration(seconds: 3),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Summary for today\'s ${_selectedSplit?.name}:',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700, fontSize: 13.5),
+            ),
+            const SizedBox(height: 10),
+            Text('• ${_activeExercises.length} Exercises performed'),
+            Text('• $completedSetsCount of $totalSetsCount Sets completed'),
+            Text('• ${volume.toStringAsFixed(0)} kg Total lifted volume'),
+            if (completedSetsCount < totalSetsCount) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline_rounded, color: Color(0xFF92400E), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'You have ${totalSetsCount - completedSetsCount} uncompleted sets. Only completed sets count toward your streak and volume statistics.',
+                        style: GoogleFonts.plusJakartaSans(color: const Color(0xFF92400E), fontSize: 11, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep Training'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            child: const Text('Finish & Save'),
+          ),
+        ],
       ),
     );
+
+    if (shouldFinish != true) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    final wp = Provider.of<WorkoutProvider>(context, listen: false);
+    final todayKey = StreakService.todayKeyIST;
+
+    final completedSession = WorkoutSession(
+      date: todayKey,
+      splitId: _selectedSplit?.id,
+      splitName: _selectedSplit?.name,
+      splitShortName: _selectedSplit?.effectiveShortName,
+      exercises: _activeExercises,
+    );
+
+    final success = await wp.saveWorkoutSession(completedSession);
+
+    if (!mounted) return;
+    setState(() {
+      _isSaving = false;
+    });
+
+    if (success) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Color(0xFF34D399), size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '${_selectedSplit?.name ?? "Workout"} finished & saved! 🔥 ${wp.currentStreak} Day Streak.',
+                  style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF0F172A),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   @override
@@ -367,8 +542,11 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
           icon: const Icon(Icons.arrow_back_rounded),
           color: titleColor,
           onPressed: () {
-            if (_currentStep > 1) {
-              _goToStep(_currentStep - 1);
+            if (_currentStep == 2) {
+              _goToStep(1);
+            } else if (_currentStep == 3) {
+              // Minimize or go back while preserving draft
+              Navigator.of(context).pop();
             } else {
               Navigator.of(context).pop();
             }
@@ -378,7 +556,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'TODAY\'S WORKOUT FLOW',
+              _currentStep == 3 ? 'LIVE WORKOUT TRACKER' : 'TODAY\'S WORKOUT FLOW',
               style: GoogleFonts.plusJakartaSans(
                 color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
                 fontSize: 10.5,
@@ -391,7 +569,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                   ? 'Step 1: Select Split'
                   : _currentStep == 2
                       ? 'Step 2: Review Last Workout'
-                      : 'Step 3: Enter Today\'s Workout',
+                      : 'Step 3: Training ${_selectedSplit?.name ?? ""}',
               style: GoogleFonts.plusJakartaSans(
                 color: titleColor,
                 fontSize: 15,
@@ -401,6 +579,15 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
           ],
         ),
         actions: [
+          if (_currentStep == 3 && _selectedSplit != null)
+            TextButton.icon(
+              onPressed: () => LastWorkoutSheet.show(context, _selectedSplit!, session: _lastSession),
+              icon: const Icon(Icons.history_rounded, size: 16),
+              label: const Text('Last Workout'),
+              style: TextButton.styleFrom(
+                foregroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+              ),
+            ),
           IconButton(
             icon: const Icon(Icons.close_rounded),
             color: subColor,
@@ -424,7 +611,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                       ? _buildStep1SelectSplit(wp, isDark, cardBg, borderColor, titleColor, subColor)
                       : _currentStep == 2
                           ? _buildStep2ReviewLast(isDark, cardBg, borderColor, titleColor, subColor)
-                          : _buildStep3EnterWorkout(isDark, cardBg, borderColor, titleColor, subColor),
+                          : _buildStep3LiveTracking(isDark, cardBg, borderColor, titleColor, subColor),
             ),
           ),
         ),
@@ -439,11 +626,11 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         children: [
-          _buildStepItem(1, 'Split', _currentStep >= 1, _currentStep == 1, isDark),
+          _buildStepItem(1, 'Select Split', _currentStep >= 1, _currentStep == 1, isDark),
           _buildStepDivider(_currentStep >= 2, isDark),
-          _buildStepItem(2, 'Review', _currentStep >= 2, _currentStep == 2, isDark),
+          _buildStepItem(2, 'Review Last', _currentStep >= 2, _currentStep == 2, isDark),
           _buildStepDivider(_currentStep >= 3, isDark),
-          _buildStepItem(3, 'Workout', _currentStep >= 3, _currentStep == 3, isDark),
+          _buildStepItem(3, 'Train Now', _currentStep >= 3, _currentStep == 3, isDark),
         ],
       ),
     );
@@ -458,7 +645,6 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
 
     return InkWell(
       onTap: () {
-        // Can jump back to previous steps
         if (stepNumber < _currentStep) {
           _goToStep(stepNumber);
         }
@@ -538,7 +724,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'What are you training today?',
+                  'Select your workout split',
                   style: GoogleFonts.plusJakartaSans(
                     color: titleColor,
                     fontSize: 20,
@@ -547,7 +733,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Select your workout split below. We\'ll load your last performance so you can beat your targets.',
+                  'Choose what you are training today to review past weights and start live set tracking.',
                   style: GoogleFonts.plusJakartaSans(
                     color: subColor,
                     fontSize: 13,
@@ -563,7 +749,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                         children: [
                           Icon(Icons.splitscreen_rounded, size: 48, color: subColor),
                           const SizedBox(height: 12),
-                          Text('No workout splits found', style: GoogleFonts.plusJakartaSans(color: titleColor, fontWeight: FontWeight.w800)),
+                          Text('No workout splits configured', style: GoogleFonts.plusJakartaSans(color: titleColor, fontWeight: FontWeight.w800)),
                           const SizedBox(height: 8),
                           ElevatedButton.icon(
                             onPressed: () {
@@ -611,21 +797,29 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                         ),
                         child: Row(
                           children: [
+                            // Short Name Badge Pill
                             Container(
-                              width: 44,
+                              width: 48,
                               height: 44,
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
                               decoration: BoxDecoration(
                                 color: isSelected
                                     ? (isDark ? AppTheme.tealLight : AppTheme.tealPrimary)
                                     : (isDark ? const Color(0xFF162344) : const Color(0xFFF1F5F9)),
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Icon(
-                                Icons.fitness_center_rounded,
-                                color: isSelected
-                                    ? (isDark ? Colors.black : Colors.white)
-                                    : (isDark ? AppTheme.tealLight : AppTheme.tealPrimary),
-                                size: 22,
+                              alignment: Alignment.center,
+                              child: Text(
+                                split.effectiveShortName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  color: isSelected
+                                      ? (isDark ? Colors.black : Colors.white)
+                                      : (isDark ? AppTheme.tealLight : AppTheme.tealPrimary),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 14),
@@ -751,7 +945,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
           ),
         ),
 
-        // Bottom Action Bar
+        // Bottom Navigation Bar
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
@@ -776,7 +970,10 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                 child: ElevatedButton.icon(
                   onPressed: _selectedSplit != null ? () => _goToStep(2) : null,
                   icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                  label: Text('Next: Review Last Workout', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800)),
+                  label: Text(
+                    'Continue to Review',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
                     foregroundColor: isDark ? Colors.black : Colors.white,
@@ -793,7 +990,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
     );
   }
 
-  // --- Step 2: Review Last Workout for Selected Split ---
+  // --- Step 2: Review Last Workout ---
 
   Widget _buildStep2ReviewLast(
     bool isDark,
@@ -837,7 +1034,6 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Split Eyebrow & Title
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -845,7 +1041,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'PREVIOUS PERFORMANCE',
+                          'PREVIOUS WORKOUT BENCHMARK',
                           style: GoogleFonts.plusJakartaSans(
                             color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
                             fontSize: 11,
@@ -911,7 +1107,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'This will be your first session for ${split.name}! Tap Next to start entering today\'s exercises.',
+                          'This will be your first session for ${split.name}! Tap Start Workout below to begin logging sets in real time.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.plusJakartaSans(
                             color: subColor,
@@ -991,7 +1187,6 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Exercises list
                   Text(
                     'EXERCISES FROM LAST SESSION',
                     style: GoogleFonts.plusJakartaSans(
@@ -1128,9 +1323,9 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
-                  onPressed: () => _goToStep(3),
-                  icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                  label: Text('Start Today\'s Workout', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800)),
+                  onPressed: _startActualWorkout,
+                  icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                  label: Text('Start Workout', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
                     foregroundColor: isDark ? Colors.black : Colors.white,
@@ -1188,9 +1383,9 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
     );
   }
 
-  // --- Step 3: Enter Today's Workout ---
+  // --- Step 3: Live Actual Workout Tracking (In-Gym Session) ---
 
-  Widget _buildStep3EnterWorkout(
+  Widget _buildStep3LiveTracking(
     bool isDark,
     Color cardBg,
     Color borderColor,
@@ -1199,25 +1394,24 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
   ) {
     final split = _selectedSplit;
 
-    // Split configured catalog exercises for quick addition
-    final List<MapEntry<String, String>> catalogExercises = [];
-    if (split != null) {
-      split.parts.forEach((part, exList) {
-        for (var exName in exList) {
-          catalogExercises.add(MapEntry(exName, part));
-        }
-      });
+    // Body parts in this split
+    final bodyParts = split?.partNames ?? [];
+    if (_selectedBodyPart == null && bodyParts.isNotEmpty) {
+      _selectedBodyPart = bodyParts.first;
     }
 
-    final double totalVolume = _todayExercises.fold(0.0, (sum, e) => sum + e.totalVolume);
-    final int completedSets = _todayExercises.fold(0, (sum, e) => sum + e.completedSetsCount);
-    final int totalSets = _todayExercises.fold(0, (sum, e) => sum + e.sets.length);
+    // Exercises for the selected body part
+    final exercisesInSelectedPart = _selectedBodyPart != null ? (split?.getExercisesForPart(_selectedBodyPart!) ?? []) : <String>[];
+
+    final double totalVolume = _activeExercises.fold(0.0, (sum, e) => sum + e.totalVolume);
+    final int completedSets = _activeExercises.fold(0, (sum, e) => sum + e.completedSetsCount);
+    final int totalSets = _activeExercises.fold(0, (sum, e) => sum + e.sets.length);
 
     return Column(
       children: [
-        // Top Split Banner with "Last Workout" Button
+        // Live Workout Stats Header
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
           decoration: BoxDecoration(
             color: cardBg,
             border: Border(bottom: BorderSide(color: borderColor)),
@@ -1225,92 +1419,102 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
           child: Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF0F3635) : AppTheme.tealBg,
-                  borderRadius: BorderRadius.circular(10),
+                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.fitness_center_rounded, color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary, size: 18),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
+                    Container(width: 8, height: 8, decoration: const BoxDecoration(shape: BoxShape.circle, color: Color(0xFF10B981))),
+                    const SizedBox(width: 6),
                     Text(
-                      'ACTIVE SPLIT',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                    Text(
-                      split?.name ?? 'Today\'s Workout',
-                      style: GoogleFonts.plusJakartaSans(
-                        color: titleColor,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      'ACTIVE WORKOUT',
+                      style: GoogleFonts.plusJakartaSans(color: const Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.w800),
                     ),
                   ],
                 ),
               ),
-
-              // "Last Workout" Button
+              const SizedBox(width: 10),
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        split?.name ?? 'Workout',
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(color: titleColor, fontSize: 14, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                    if (split != null) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF0F3635) : AppTheme.tealBg,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          split.effectiveShortName,
+                          style: GoogleFonts.plusJakartaSans(
+                            color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
               ElevatedButton.icon(
                 onPressed: () {
                   if (split != null) {
                     LastWorkoutSheet.show(context, split, session: _lastSession);
                   }
                 },
-                icon: const Icon(Icons.history_rounded, size: 15),
+                icon: const Icon(Icons.history_rounded, size: 14),
                 label: const Text('Last Workout'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isDark ? const Color(0xFF162344) : const Color(0xFFF1F5F9),
                   foregroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
                   elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: isDark ? const Color(0xFF1E3A8A) : const Color(0xFFCBD5E1)),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ],
           ),
         ),
 
-        // Realtime stats bar
+        // Live stats ribbon
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Text('${_todayExercises.length} Exercises', style: GoogleFonts.plusJakartaSans(color: subColor, fontSize: 11.5, fontWeight: FontWeight.w700)),
+              Text('${_activeExercises.length} Exercises', style: GoogleFonts.plusJakartaSans(color: subColor, fontSize: 11.5, fontWeight: FontWeight.w700)),
               Text('•', style: TextStyle(color: subColor)),
-              Text('$completedSets / $totalSets Sets Done', style: GoogleFonts.plusJakartaSans(color: subColor, fontSize: 11.5, fontWeight: FontWeight.w700)),
+              Text('$completedSets / $totalSets Sets Done', style: GoogleFonts.plusJakartaSans(color: completedSets > 0 ? const Color(0xFF10B981) : subColor, fontSize: 11.5, fontWeight: FontWeight.w800)),
               Text('•', style: TextStyle(color: subColor)),
               Text('${totalVolume.toStringAsFixed(0)} kg Lifted', style: GoogleFonts.plusJakartaSans(color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary, fontSize: 11.5, fontWeight: FontWeight.w800)),
             ],
           ),
         ),
 
-        // Exercises Editor
+        // Body Part Selector & Exercises
         Expanded(
           child: SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Quick Add Chips from Selected Split
-                if (catalogExercises.isNotEmpty) ...[
+                // Body Part Tabs
+                if (bodyParts.isNotEmpty) ...[
                   Text(
-                    'QUICK ADD FROM ${split?.name.toUpperCase()}',
+                    'BODY PARTS IN THIS SPLIT',
                     style: GoogleFonts.plusJakartaSans(
                       color: subColor,
                       fontSize: 10.5,
@@ -1319,50 +1523,158 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: catalogExercises.map((entry) {
-                      final exName = entry.key;
-                      final part = entry.value;
-                      final isAdded = _todayExercises.any((e) => e.name.trim().toLowerCase() == exName.trim().toLowerCase());
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: bodyParts.map((part) {
+                        final isPartSelected = part == _selectedBodyPart;
+                        final exerciseCountInActive = _activeExercises.where((e) => e.part == part).length;
 
-                      return ActionChip(
-                        avatar: Icon(
-                          isAdded ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
-                          size: 16,
-                          color: isAdded
-                              ? (isDark ? AppTheme.tealLight : AppTheme.tealPrimary)
-                              : subColor,
-                        ),
-                        label: Text(exName),
-                        labelStyle: GoogleFonts.plusJakartaSans(
-                          color: isAdded ? titleColor : subColor,
-                          fontSize: 11.5,
-                          fontWeight: isAdded ? FontWeight.w800 : FontWeight.w600,
-                        ),
-                        backgroundColor: isAdded
-                            ? (isDark ? const Color(0xFF0F3635) : AppTheme.tealBg)
-                            : cardBg,
-                        side: BorderSide(
-                          color: isAdded
-                              ? (isDark ? AppTheme.tealLight : AppTheme.tealPrimary)
-                              : borderColor,
-                        ),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        onPressed: () => _addExerciseFromSplit(exName, part),
-                      );
-                    }).toList(),
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(part),
+                                if (exerciseCountInActive > 0) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: isPartSelected
+                                          ? (isDark ? Colors.black : Colors.white)
+                                          : (isDark ? const Color(0xFF0F3635) : AppTheme.tealBg),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      '$exerciseCountInActive',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: isPartSelected
+                                            ? (isDark ? AppTheme.tealLight : AppTheme.tealPrimary)
+                                            : (isDark ? AppTheme.tealLight : AppTheme.tealPrimary),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                            selected: isPartSelected,
+                            onSelected: (val) {
+                              if (val) {
+                                setState(() {
+                                  _selectedBodyPart = part;
+                                });
+                              }
+                            },
+                            selectedColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                            labelStyle: GoogleFonts.plusJakartaSans(
+                              color: isPartSelected
+                                  ? (isDark ? Colors.black : Colors.white)
+                                  : titleColor,
+                              fontSize: 12,
+                              fontWeight: isPartSelected ? FontWeight.w800 : FontWeight.w600,
+                            ),
+                            backgroundColor: cardBg,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
+
+                  // Exercises Catalog for the Selected Body Part
+                  if (_selectedBodyPart != null) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'EXERCISES FOR $_selectedBodyPart',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: subColor,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: _promptAddCustomExercise,
+                          icon: const Icon(Icons.add_rounded, size: 15),
+                          label: const Text('Add Custom'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                            padding: EdgeInsets.zero,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        ...exercisesInSelectedPart.map((exName) {
+                          final isAdded = _activeExercises.any(
+                            (e) => e.name.trim().toLowerCase() == exName.trim().toLowerCase(),
+                          );
+
+                          // Previous weight suggestion if available
+                          double? prevW;
+                          int? prevR;
+                          if (_lastSession != null) {
+                            for (var ex in _lastSession!.exercises) {
+                              if (ex.name.trim().toLowerCase() == exName.trim().toLowerCase() && ex.sets.isNotEmpty) {
+                                prevW = ex.sets.last.weight;
+                                prevR = ex.sets.last.reps;
+                                break;
+                              }
+                            }
+                          }
+
+                          return ActionChip(
+                            avatar: Icon(
+                              isAdded ? Icons.check_circle_rounded : Icons.add_circle_outline_rounded,
+                              size: 16,
+                              color: isAdded
+                                  ? (isDark ? AppTheme.tealLight : AppTheme.tealPrimary)
+                                  : subColor,
+                            ),
+                            label: Text(
+                              prevW != null ? '$exName (${prevW.toStringAsFixed(prevW % 1 == 0 ? 0 : 1)}kg×$prevR)' : exName,
+                            ),
+                            labelStyle: GoogleFonts.plusJakartaSans(
+                              color: isAdded ? titleColor : subColor,
+                              fontSize: 11.5,
+                              fontWeight: isAdded ? FontWeight.w800 : FontWeight.w600,
+                            ),
+                            backgroundColor: isAdded
+                                ? (isDark ? const Color(0xFF0F3635) : AppTheme.tealBg)
+                                : cardBg,
+                            side: BorderSide(
+                              color: isAdded
+                                  ? (isDark ? AppTheme.tealLight : AppTheme.tealPrimary)
+                                  : borderColor,
+                            ),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            onPressed: () => _addExerciseToWorkout(exName, _selectedBodyPart!),
+                          );
+                        }),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                 ],
 
-                // Action to Add Custom
+                // Active Exercises Set-Entry Interface
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'TODAY\'S EXERCISES',
+                      'LOGGED EXERCISES',
                       style: GoogleFonts.plusJakartaSans(
                         color: subColor,
                         fontSize: 11,
@@ -1370,22 +1682,18 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                         letterSpacing: 0.8,
                       ),
                     ),
-                    TextButton.icon(
-                      onPressed: _promptAddCustomExercise,
-                      icon: const Icon(Icons.add_rounded, size: 16),
-                      label: const Text('Add Custom Exercise'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                      ),
+                    Text(
+                      '${_activeExercises.length} in session',
+                      style: GoogleFonts.plusJakartaSans(color: subColor, fontSize: 11, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
 
-                if (_todayExercises.isEmpty)
+                if (_activeExercises.isEmpty)
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                    padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
                     decoration: BoxDecoration(
                       color: cardBg,
                       borderRadius: BorderRadius.circular(20),
@@ -1393,16 +1701,23 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                     ),
                     child: Column(
                       children: [
-                        Icon(Icons.playlist_add_rounded, size: 40, color: subColor),
+                        Icon(Icons.fitness_center_rounded, size: 40, color: subColor),
                         const SizedBox(height: 12),
-                        Text('No exercises added yet', style: GoogleFonts.plusJakartaSans(color: titleColor, fontWeight: FontWeight.w800, fontSize: 15)),
+                        Text(
+                          'No exercises in this workout yet',
+                          style: GoogleFonts.plusJakartaSans(color: titleColor, fontWeight: FontWeight.w800, fontSize: 15),
+                        ),
                         const SizedBox(height: 4),
-                        Text('Tap a quick add chip above or add a custom exercise to begin today\'s log.', textAlign: TextAlign.center, style: GoogleFonts.plusJakartaSans(color: subColor, fontSize: 12.5)),
+                        Text(
+                          'Select a body part above and tap an exercise to start logging your sets.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.plusJakartaSans(color: subColor, fontSize: 12.5),
+                        ),
                       ],
                     ),
                   )
                 else
-                  ..._todayExercises.asMap().entries.map((entry) {
+                  ..._activeExercises.asMap().entries.map((entry) {
                     final exIndex = entry.key;
                     final ex = entry.value;
 
@@ -1424,7 +1739,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Exercise title & remove button
+                          // Exercise Title & Part Tag
                           Row(
                             children: [
                               Expanded(
@@ -1460,185 +1775,255 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                           ),
                           const Divider(height: 16),
 
-                          // Sets list
+                          // Sets Table Header
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            child: Row(
+                              children: [
+                                SizedBox(width: 32, child: Text('SET', style: GoogleFonts.plusJakartaSans(color: subColor, fontSize: 10, fontWeight: FontWeight.w800))),
+                                Expanded(flex: 3, child: Text('WEIGHT (KG)', textAlign: TextAlign.center, style: GoogleFonts.plusJakartaSans(color: subColor, fontSize: 10, fontWeight: FontWeight.w800))),
+                                const SizedBox(width: 8),
+                                Expanded(flex: 3, child: Text('REPS', textAlign: TextAlign.center, style: GoogleFonts.plusJakartaSans(color: subColor, fontSize: 10, fontWeight: FontWeight.w800))),
+                                const SizedBox(width: 8),
+                                SizedBox(width: 44, child: Text('DONE', textAlign: TextAlign.center, style: GoogleFonts.plusJakartaSans(color: subColor, fontSize: 10, fontWeight: FontWeight.w800))),
+                                const SizedBox(width: 24),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+
+                          // Live Sets List
                           ...ex.sets.asMap().entries.map((setEntry) {
                             final setIndex = setEntry.key;
                             final setItem = setEntry.value;
 
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
+                            return Container(
+                              margin: const EdgeInsets.symmetric(vertical: 3),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: setItem.completed
+                                    ? (isDark ? const Color(0xFF0F3635).withValues(alpha: 0.4) : AppTheme.tealBg.withValues(alpha: 0.4))
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                               child: Row(
                                 children: [
-                                  // Set indicator
-                                  Container(
-                                    width: 24,
-                                    height: 24,
-                                    decoration: BoxDecoration(
-                                      color: isDark ? const Color(0xFF162344) : const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '${setItem.setNumber}',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          color: titleColor,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w800,
-                                        ),
+                                  // Set Number
+                                  SizedBox(
+                                    width: 32,
+                                    child: Text(
+                                      '${setItem.setNumber}',
+                                      style: GoogleFonts.plusJakartaSans(
+                                        color: setItem.completed ? (isDark ? AppTheme.tealLight : AppTheme.tealPrimary) : titleColor,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
                                   ),
-                                  const SizedBox(width: 10),
 
-                                  // Weight input
+                                  // Weight input with steppers
                                   Expanded(
                                     flex: 3,
-                                    child: Row(
-                                      children: [
-                                        InkWell(
-                                          onTap: () {
-                                            if (setItem.weight > 0) {
-                                              setState(() {
-                                                setItem.weight = (setItem.weight - 2.5).clamp(0, 500);
-                                              });
-                                            }
-                                          },
-                                          borderRadius: BorderRadius.circular(6),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            child: Icon(Icons.remove_rounded, size: 16, color: subColor),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            '${setItem.weight.toStringAsFixed(setItem.weight % 1 == 0 ? 0 : 1)} kg',
-                                            textAlign: TextAlign.center,
-                                            style: GoogleFonts.plusJakartaSans(
-                                              color: titleColor,
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                        InkWell(
-                                          onTap: () {
-                                            setState(() {
-                                              setItem.weight += 2.5;
-                                            });
-                                          },
-                                          borderRadius: BorderRadius.circular(6),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            child: Icon(Icons.add_rounded, size: 16, color: subColor),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-
-                                  // Reps input
-                                  Expanded(
-                                    flex: 3,
-                                    child: Row(
-                                      children: [
-                                        InkWell(
-                                          onTap: () {
-                                            if (setItem.reps > 1) {
-                                              setState(() {
-                                                setItem.reps--;
-                                              });
-                                            }
-                                          },
-                                          borderRadius: BorderRadius.circular(6),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            child: Icon(Icons.remove_rounded, size: 16, color: subColor),
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            '${setItem.reps} reps',
-                                            textAlign: TextAlign.center,
-                                            style: GoogleFonts.plusJakartaSans(
-                                              color: titleColor,
-                                              fontSize: 12.5,
-                                              fontWeight: FontWeight.w800,
-                                            ),
-                                          ),
-                                        ),
-                                        InkWell(
-                                          onTap: () {
-                                            setState(() {
-                                              setItem.reps++;
-                                            });
-                                          },
-                                          borderRadius: BorderRadius.circular(6),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            child: Icon(Icons.add_rounded, size: 16, color: subColor),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-
-                                  // Checkbox for Completed
-                                  InkWell(
-                                    onTap: () {
-                                      setState(() {
-                                        setItem.completed = !setItem.completed;
-                                      });
-                                    },
-                                    borderRadius: BorderRadius.circular(8),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: setItem.completed
-                                            ? (isDark ? const Color(0xFF0F3635) : AppTheme.tealBg)
-                                            : Colors.transparent,
-                                        borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(
-                                          color: setItem.completed
-                                              ? (isDark ? AppTheme.tealLight : AppTheme.tealPrimary)
-                                              : borderColor,
-                                        ),
+                                        color: isDark ? const Color(0xFF162344) : const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: borderColor),
                                       ),
-                                      child: Icon(
-                                        setItem.completed ? Icons.check_rounded : Icons.radio_button_unchecked_rounded,
-                                        size: 16,
-                                        color: setItem.completed
-                                            ? (isDark ? AppTheme.tealLight : AppTheme.tealPrimary)
-                                            : subColor,
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          InkWell(
+                                            onTap: () => _adjustWeight(exIndex, setIndex, -2.5),
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(4),
+                                              child: Icon(Icons.remove_rounded, size: 14, color: subColor),
+                                            ),
+                                          ),
+                                          InkWell(
+                                            onTap: () async {
+                                              final ctrl = TextEditingController(text: '${setItem.weight}');
+                                              final val = await showDialog<double>(
+                                                context: context,
+                                                builder: (ctx) => AlertDialog(
+                                                  title: const Text('Edit Weight (kg)'),
+                                                  content: TextField(
+                                                    controller: ctrl,
+                                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                                    autofocus: true,
+                                                  ),
+                                                  actions: [
+                                                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                                                    ElevatedButton(
+                                                      onPressed: () => Navigator.pop(ctx, double.tryParse(ctrl.text)),
+                                                      child: const Text('Set'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                              if (val != null) {
+                                                setState(() {
+                                                  ex.sets[setIndex] = ex.sets[setIndex].copyWith(weight: val);
+                                                });
+                                                _syncDraft();
+                                              }
+                                            },
+                                            child: Text(
+                                              '${setItem.weight.toStringAsFixed(setItem.weight % 1 == 0 ? 0 : 1)}',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                color: titleColor,
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                          InkWell(
+                                            onTap: () => _adjustWeight(exIndex, setIndex, 2.5),
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(4),
+                                              child: Icon(Icons.add_rounded, size: 14, color: subColor),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+
+                                  // Reps input with steppers
+                                  Expanded(
+                                    flex: 3,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF162344) : const Color(0xFFF1F5F9),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: borderColor),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          InkWell(
+                                            onTap: () => _adjustReps(exIndex, setIndex, -1),
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(4),
+                                              child: Icon(Icons.remove_rounded, size: 14, color: subColor),
+                                            ),
+                                          ),
+                                          InkWell(
+                                            onTap: () async {
+                                              final ctrl = TextEditingController(text: '${setItem.reps}');
+                                              final val = await showDialog<int>(
+                                                context: context,
+                                                builder: (ctx) => AlertDialog(
+                                                  title: const Text('Edit Reps'),
+                                                  content: TextField(
+                                                    controller: ctrl,
+                                                    keyboardType: TextInputType.number,
+                                                    autofocus: true,
+                                                  ),
+                                                  actions: [
+                                                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                                                    ElevatedButton(
+                                                      onPressed: () => Navigator.pop(ctx, int.tryParse(ctrl.text)),
+                                                      child: const Text('Set'),
+                                                    ),
+                                                  ],
+                                                ),
+                                              );
+                                              if (val != null) {
+                                                setState(() {
+                                                  ex.sets[setIndex] = ex.sets[setIndex].copyWith(reps: val);
+                                                });
+                                                _syncDraft();
+                                              }
+                                            },
+                                            child: Text(
+                                              '${setItem.reps}',
+                                              style: GoogleFonts.plusJakartaSans(
+                                                color: titleColor,
+                                                fontSize: 12.5,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ),
+                                          InkWell(
+                                            onTap: () => _adjustReps(exIndex, setIndex, 1),
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(4),
+                                              child: Icon(Icons.add_rounded, size: 14, color: subColor),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+
+                                  // Explicit Set Completion Button (Never marked automatically)
+                                  SizedBox(
+                                    width: 44,
+                                    child: Center(
+                                      child: InkWell(
+                                        onTap: () => _toggleSetCompletion(exIndex, setIndex),
+                                        borderRadius: BorderRadius.circular(10),
+                                        child: AnimatedContainer(
+                                          duration: const Duration(milliseconds: 150),
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            color: setItem.completed
+                                                ? const Color(0xFF10B981)
+                                                : (isDark ? const Color(0xFF162344) : const Color(0xFFF1F5F9)),
+                                            borderRadius: BorderRadius.circular(10),
+                                            border: Border.all(
+                                              color: setItem.completed
+                                                  ? const Color(0xFF059669)
+                                                  : (isDark ? const Color(0xFF334155) : const Color(0xFFCBD5E1)),
+                                              width: 1.5,
+                                            ),
+                                          ),
+                                          child: Icon(
+                                            setItem.completed ? Icons.check_rounded : Icons.radio_button_unchecked_rounded,
+                                            size: 18,
+                                            color: setItem.completed ? Colors.white : subColor,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
 
-                                  // Delete set button
-                                  if (ex.sets.length > 1)
-                                    IconButton(
-                                      icon: const Icon(Icons.close_rounded, size: 14),
-                                      color: subColor,
-                                      padding: const EdgeInsets.all(4),
-                                      constraints: const BoxConstraints(),
-                                      onPressed: () => _removeSetFromExercise(exIndex, setIndex),
-                                    ),
+                                  // Delete Set Button
+                                  SizedBox(
+                                    width: 24,
+                                    child: ex.sets.length > 1
+                                        ? IconButton(
+                                            icon: const Icon(Icons.close_rounded, size: 14),
+                                            color: subColor,
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                            onPressed: () => _removeSetFromExercise(exIndex, setIndex),
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
                                 ],
                               ),
                             );
                           }),
 
                           const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: TextButton.icon(
-                              onPressed: () => _addSetToExercise(exIndex),
-                              icon: const Icon(Icons.add_rounded, size: 14),
-                              label: const Text('Add Set'),
-                              style: TextButton.styleFrom(
-                                foregroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                              ),
+                          TextButton.icon(
+                            onPressed: () => _addSetToExercise(exIndex),
+                            icon: const Icon(Icons.add_rounded, size: 15),
+                            label: const Text('Add Set'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             ),
                           ),
                         ],
@@ -1650,39 +2035,70 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
           ),
         ),
 
-        // Bottom Save / Finish Action Bar
+        // Bottom Finish Workout Action Bar
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
             color: cardBg,
             border: Border(top: BorderSide(color: borderColor)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+            ],
           ),
           child: Row(
             children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _goToStep(2),
-                  icon: const Icon(Icons.arrow_back_rounded, size: 16),
-                  label: Text('Back to Review', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
+              OutlinedButton(
+                onPressed: () async {
+                  final discard = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: const Text('Discard Active Workout?'),
+                      content: const Text('This will reset today\'s workout session. All logged sets in this session will be removed.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep Training')),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white),
+                          child: const Text('Discard'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (discard == true) {
+                    final wp = Provider.of<WorkoutProvider>(context, listen: false);
+                    await wp.discardActiveWorkout();
+                    if (mounted) Navigator.pop(context);
+                  }
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFEF4444),
+                  side: const BorderSide(color: Color(0xFFF87171)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
+                child: const Icon(Icons.delete_sweep_rounded, size: 18),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 12),
               Expanded(
-                flex: 2,
                 child: ElevatedButton.icon(
-                  onPressed: _finishAndSaveWorkout,
-                  icon: const Icon(Icons.check_circle_rounded, size: 18),
-                  label: Text('Save & Finish Workout', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800)),
+                  onPressed: _isSaving ? null : _confirmAndFinishWorkout,
+                  icon: _isSaving
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.check_circle_rounded, size: 20),
+                  label: Text(
+                    _isSaving ? 'Saving Workout...' : 'Finish Workout ($completedSets/$totalSets)',
+                    style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, fontSize: 14),
+                  ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                    foregroundColor: isDark ? Colors.black : Colors.white,
+                    backgroundColor: const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 2,
+                    elevation: 3,
                   ),
                 ),
               ),

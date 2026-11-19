@@ -49,6 +49,7 @@ class _WorkoutCalendarCardState extends State<WorkoutCalendarCard> {
 
   @override
   Widget build(BuildContext context) {
+    final workoutProvider = Provider.of<WorkoutProvider>(context);
     final isDark = Provider.of<ThemeProvider>(context).isDarkMode(context);
     final cardBg = isDark ? AppTheme.darkCard : AppTheme.lightCard;
     final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
@@ -148,8 +149,10 @@ class _WorkoutCalendarCardState extends State<WorkoutCalendarCard> {
 
               final session = widget.sessions[widget.selectedDateKey];
               final hasWorkout = session != null && session.exercises.any((e) => e.sets.isNotEmpty);
+              final splitName = workoutProvider.getSplitNameForDate(selectedDate, session: session);
               final split = workoutProvider.getSplitForDate(selectedDate);
               final isSunday = selectedDate.weekday == DateTime.sunday;
+              final shortName = workoutProvider.getSplitShortNameForDate(selectedDate, session: session);
 
               final String splitTitle;
               final String splitSubtitle;
@@ -158,18 +161,15 @@ class _WorkoutCalendarCardState extends State<WorkoutCalendarCard> {
               final IconData badgeIcon;
 
               if (hasWorkout) {
-                final groups = session.exercises
-                    .map((e) => e.group)
-                    .where((g) => g.isNotEmpty && g != 'General' && g != 'Custom')
-                    .toSet()
-                    .toList();
-                splitTitle = groups.isNotEmpty ? groups.join(' & ') : (split?.name ?? 'Logged Session');
+                // Requirement 1: For completed workouts, display WorkoutSession.splitName (preserving historical name)
+                splitTitle = splitName;
                 splitSubtitle = '${session.exercises.length} exercises · ${session.completedSets} sets';
                 badgeLabel = 'Completed';
                 badgeColor = const Color(0xFF10B981);
                 badgeIcon = Icons.fitness_center_rounded;
               } else if (split != null) {
-                splitTitle = split.name;
+                // Requirement 1: For scheduled workouts without a completed session, display split assigned to weekday
+                splitTitle = splitName;
                 splitSubtitle = split.partNames.isNotEmpty
                     ? 'Scheduled: ${split.partNames.join(', ')}'
                     : '${split.defaultSets} sets × ${split.defaultReps} reps target';
@@ -177,14 +177,14 @@ class _WorkoutCalendarCardState extends State<WorkoutCalendarCard> {
                 badgeColor = isDark ? AppTheme.tealLight : AppTheme.tealPrimary;
                 badgeIcon = Icons.event_available_rounded;
               } else if (isSunday) {
-                splitTitle = 'Rest & Recovery Day';
+                splitTitle = splitName;
                 splitSubtitle = 'Sunday rest preserved — streak protected';
                 badgeLabel = 'Rest Day';
                 badgeColor = const Color(0xFF818CF8);
                 badgeIcon = Icons.self_improvement_rounded;
               } else {
-                splitTitle = 'Rest / Off Day';
-                splitSubtitle = 'No workouts logged for this date';
+                splitTitle = splitName;
+                splitSubtitle = 'No workouts scheduled or logged for this date';
                 badgeLabel = 'Off Day';
                 badgeColor = const Color(0xFF94A3B8);
                 badgeIcon = Icons.pause_circle_outline_rounded;
@@ -233,6 +233,27 @@ class _WorkoutCalendarCardState extends State<WorkoutCalendarCard> {
                                   ),
                                 ),
                               ),
+                              if (shortName.isNotEmpty && shortName != 'WOD' && shortName != 'REST') ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF0F3635) : AppTheme.tealBg,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: isDark ? const Color(0xFF134E4A) : const Color(0xFF99F6E4),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    shortName,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ],
                               const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -336,6 +357,8 @@ class _WorkoutCalendarCardState extends State<WorkoutCalendarCard> {
               final isToday = dateKey == todayKey;
               final isSelected = dateKey == widget.selectedDateKey;
 
+              final shortName = workoutProvider.getSplitShortNameForDate(date, session: session);
+
               return InkWell(
                 onTap: () => widget.onDateSelected(date),
                 borderRadius: BorderRadius.circular(12),
@@ -370,29 +393,40 @@ class _WorkoutCalendarCardState extends State<WorkoutCalendarCard> {
                               : (hasWorkout
                                   ? (isDark ? Colors.white : AppTheme.tealPrimary)
                                   : (isSunday ? const Color(0xFF94A3B8) : titleColor)),
-                          fontSize: 12,
+                          fontSize: 11.5,
                           fontWeight: (hasWorkout || isSelected || isToday)
                               ? FontWeight.w800
                               : FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      if (hasWorkout)
+                      const SizedBox(height: 1),
+                      if (shortName.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: Text(
+                            shortName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.plusJakartaSans(
+                              color: isSelected
+                                  ? (isDark ? AppTheme.tealLight : AppTheme.tealPrimary)
+                                  : (hasWorkout
+                                      ? (isDark ? const Color(0xFF34D399) : const Color(0xFF0D9488))
+                                      : (isSunday ? const Color(0xFF94A3B8) : subColor)),
+                              fontSize: 7.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                        )
+                      else if (hasWorkout)
                         Container(
                           width: 4,
                           height: 4,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                          ),
-                        )
-                      else if (isSunday)
-                        Text(
-                          'REST',
-                          style: GoogleFonts.plusJakartaSans(
-                            color: const Color(0xFF94A3B8),
-                            fontSize: 7,
-                            fontWeight: FontWeight.w800,
                           ),
                         )
                       else

@@ -163,6 +163,7 @@ void main() {
         name: 'Push Day',
         parts: {'Chest': ['Bench Press']},
       );
+      wp.splitGroups.add(pushSplit);
 
       final oldPush = WorkoutSession(
         date: '2026-11-05',
@@ -226,6 +227,107 @@ void main() {
       // When looking for a split with no history, returns null
       final lastArms = wp.getLastWorkoutForSplit('split-arms', splitName: 'Arms');
       expect(lastArms, isNull);
+
+      wp.dispose();
+    });
+
+    test('getSplitNameForDate preserves historical splitName and updates scheduled splits', () {
+      final wp = WorkoutProvider();
+
+      final pushSplit = SplitGroup(
+        id: 'split-push',
+        name: 'Push Workout (Renamed)',
+        shortName: 'PUSH',
+        days: const ['Monday'],
+        parts: const {'Chest': ['Bench Press']},
+      );
+      wp.splitGroups.clear();
+      wp.splitGroups.add(pushSplit);
+
+      // 1. Completed historical session with original historical name
+      final historicalSession = WorkoutSession(
+        date: '2026-11-09',
+        splitId: 'split-push',
+        splitName: 'Old Push Name',
+        splitShortName: 'PUSH',
+        exercises: [
+          Exercise(
+            id: 'ex-1',
+            name: 'Bench Press',
+            group: 'General', // Not named after split!
+            part: 'Chest',
+            equipment: 'Barbell',
+            sets: [WorkoutSet(setNumber: 1, weight: 80, reps: 8, completed: true)],
+          ),
+        ],
+      );
+
+      final completedName = wp.getSplitNameForDate(
+        DateTime(2026, 11, 9),
+        session: historicalSession,
+      );
+      // Preserves historical name
+      expect(completedName, 'Old Push Name');
+
+      // 2. Scheduled workout without completed session on Monday (Nov 16, 2026 was Monday)
+      final scheduledName = wp.getSplitNameForDate(DateTime(2026, 11, 16));
+      expect(scheduledName, 'Push Workout (Renamed)');
+
+      // 3. Sunday rest day (Nov 15, 2026 was Sunday)
+      final sundayName = wp.getSplitNameForDate(DateTime(2026, 11, 15));
+      expect(sundayName, 'Rest & Recovery Day');
+
+      // 4. Compact short name tests
+      final shortHistorical = wp.getSplitShortNameForDate(
+        DateTime(2026, 11, 9),
+        session: historicalSession,
+      );
+      expect(shortHistorical, 'PUSH');
+
+      final shortScheduled = wp.getSplitShortNameForDate(DateTime(2026, 11, 16));
+      expect(shortScheduled, 'PUSH');
+
+      final shortSunday = wp.getSplitShortNameForDate(DateTime(2026, 11, 15));
+      expect(shortSunday, 'REST');
+
+      wp.dispose();
+    });
+
+    test('active workout draft persistence and uncompleted live set initialization', () async {
+      final wp = WorkoutProvider();
+
+      expect(wp.hasActiveWorkoutDraft, isFalse);
+
+      final draftSession = WorkoutSession(
+        date: '2026-11-19',
+        splitId: 'split-push',
+        splitName: 'Push Day',
+        splitShortName: 'PUSH',
+        exercises: [
+          Exercise(
+            id: 'ex-live',
+            name: 'Incline Dumbbell Press',
+            group: 'Push Day',
+            part: 'Chest',
+            equipment: 'Dumbbell',
+            sets: [
+              // Sets must start uncompleted
+              WorkoutSet(setNumber: 1, weight: 26, reps: 10, completed: false),
+              WorkoutSet(setNumber: 2, weight: 26, reps: 10, completed: false),
+            ],
+          ),
+        ],
+      );
+
+      // Verify sets start uncompleted
+      expect(draftSession.exercises.first.sets.every((s) => !s.completed), isTrue);
+
+      await wp.saveActiveWorkoutDraft(draftSession);
+      expect(wp.hasActiveWorkoutDraft, isTrue);
+      expect(wp.activeWorkoutDraft?.splitName, 'Push Day');
+
+      await wp.clearActiveWorkoutDraft();
+      expect(wp.hasActiveWorkoutDraft, isFalse);
 
       wp.dispose();
     });

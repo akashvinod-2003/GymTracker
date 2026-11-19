@@ -20,6 +20,7 @@ class EditSplitDialog extends StatefulWidget {
 
 class _EditSplitDialogState extends State<EditSplitDialog> {
   late TextEditingController _nameController;
+  late TextEditingController _shortNameController;
   late TextEditingController _descController;
   late List<String> _selectedDays;
   late int _defaultSets;
@@ -32,6 +33,11 @@ class _EditSplitDialogState extends State<EditSplitDialog> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.splitGroup.name);
+    _shortNameController = TextEditingController(
+      text: widget.splitGroup.shortName.isNotEmpty
+          ? widget.splitGroup.shortName
+          : widget.splitGroup.effectiveShortName,
+    );
     _descController = TextEditingController(text: widget.splitGroup.desc);
     _selectedDays = List<String>.from(widget.splitGroup.days);
     _defaultSets = widget.splitGroup.defaultSets;
@@ -45,6 +51,7 @@ class _EditSplitDialogState extends State<EditSplitDialog> {
   @override
   void dispose() {
     _nameController.dispose();
+    _shortNameController.dispose();
     _descController.dispose();
     super.dispose();
   }
@@ -230,8 +237,20 @@ class _EditSplitDialogState extends State<EditSplitDialog> {
       return;
     }
 
+    String shortName = _shortNameController.text.trim().toUpperCase();
+    if (shortName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter a short name (2 to 8 characters).'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     final updated = widget.splitGroup.copyWith(
       name: name,
+      shortName: shortName,
       desc: _descController.text.trim(),
       days: _selectedDays,
       defaultSets: _defaultSets,
@@ -246,7 +265,7 @@ class _EditSplitDialogState extends State<EditSplitDialog> {
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Updated split "$name" successfully!'),
+          content: Text('Updated split "$name [$shortName]" successfully!'),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -321,36 +340,95 @@ class _EditSplitDialogState extends State<EditSplitDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Split Name Field
-                      Text(
-                        'SPLIT NAME',
-                        style: GoogleFonts.plusJakartaSans(
-                          color: subColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Container(
-                        decoration: BoxDecoration(
-                          color: inputBg,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: borderColor),
-                        ),
-                        child: TextField(
-                          controller: _nameController,
-                          style: GoogleFonts.plusJakartaSans(
-                            color: titleColor,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                      // Split Name & Short Name Row
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'SPLIT NAME',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: subColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: inputBg,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: borderColor),
+                                  ),
+                                  child: TextField(
+                                    controller: _nameController,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: titleColor,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: 'e.g. Upper Body, Push',
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                      border: InputBorder.none,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          decoration: InputDecoration(
-                            hintText: 'e.g. Upper Body, Push, Anterior',
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            border: InputBorder.none,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            flex: 2,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'SHORT NAME',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    color: subColor,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: inputBg,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: borderColor),
+                                  ),
+                                  child: TextField(
+                                    controller: _shortNameController,
+                                    maxLength: 8,
+                                    textCapitalization: TextCapitalization.characters,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                    decoration: InputDecoration(
+                                      counterText: '',
+                                      hintText: 'e.g. PUSH',
+                                      hintStyle: GoogleFonts.plusJakartaSans(
+                                        color: isDark ? const Color(0xFF475569) : const Color(0xFF94A3B8),
+                                        fontSize: 12,
+                                      ),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                      border: InputBorder.none,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                       ),
                       const SizedBox(height: 16),
 

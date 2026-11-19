@@ -528,6 +528,36 @@ class DatabaseService {
   }
 
   // ----------------------------------------------------
+  // ACTIVE WORKOUT DRAFT PERSISTENCE
+  // ----------------------------------------------------
+
+  String get _activeWorkoutDraftKey => 'active_workout_draft_$userId';
+
+  Future<WorkoutSession?> loadActiveWorkoutDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_activeWorkoutDraftKey);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final Map<String, dynamic> map = jsonDecode(raw);
+        return WorkoutSession.fromMap(map);
+      } catch (e) {
+        debugPrint("Error decoding active workout draft: $e");
+      }
+    }
+    return null;
+  }
+
+  Future<void> saveActiveWorkoutDraft(WorkoutSession session) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_activeWorkoutDraftKey, jsonEncode(session.toMap()));
+  }
+
+  Future<void> clearActiveWorkoutDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_activeWorkoutDraftKey);
+  }
+
+  // ----------------------------------------------------
   // USER BODY WEIGHT LOGS (On-demand, sporadic check-ins)
   // ----------------------------------------------------
 

@@ -86,5 +86,32 @@ void main() {
       expect(original.name, 'Upper Body');
       expect(original.order, 0);
     });
+
+    test('shortName serialization and effectiveShortName fallback logic', () {
+      final splitWithShort = SplitGroup(
+        id: 'split-s1',
+        name: 'Push Pull Legs',
+        shortName: 'PPL',
+        parts: const {},
+      );
+      expect(splitWithShort.shortName, 'PPL');
+      expect(splitWithShort.effectiveShortName, 'PPL');
+
+      final map = splitWithShort.toMap();
+      expect(map['shortName'], 'PPL');
+      final reconstructed = SplitGroup.fromMap(map);
+      expect(reconstructed.shortName, 'PPL');
+      expect(reconstructed.effectiveShortName, 'PPL');
+
+      // Without explicit shortName, generates sensible fallback
+      final multiWord = SplitGroup(id: 'split-s2', name: 'Upper Body Heavy', parts: const {});
+      expect(multiWord.effectiveShortName, 'UBH');
+
+      final singleWord = SplitGroup(id: 'split-s3', name: 'Legs', parts: const {});
+      expect(singleWord.effectiveShortName, 'LEGS');
+
+      final longWord = SplitGroup(id: 'split-s4', name: 'Conditioning', parts: const {});
+      expect(longWord.effectiveShortName, 'CONDI');
+    });
   });
 }

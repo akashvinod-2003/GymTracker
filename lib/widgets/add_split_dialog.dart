@@ -14,6 +14,7 @@ class AddSplitDialog extends StatefulWidget {
 
 class _AddSplitDialogState extends State<AddSplitDialog> {
   final _nameController = TextEditingController();
+  final _shortNameController = TextEditingController();
   final _descController = TextEditingController();
   final List<String> _selectedDays = [];
   final List<String> _allDays = const ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -21,6 +22,7 @@ class _AddSplitDialogState extends State<AddSplitDialog> {
   @override
   void dispose() {
     _nameController.dispose();
+    _shortNameController.dispose();
     _descController.dispose();
     super.dispose();
   }
@@ -87,40 +89,99 @@ class _AddSplitDialogState extends State<AddSplitDialog> {
             ),
             const SizedBox(height: 16),
 
-            // Group Name
-            Text(
-              'GROUP NAME',
-              style: GoogleFonts.plusJakartaSans(
-                color: subColor,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              decoration: BoxDecoration(
-                color: inputBg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: borderColor),
-              ),
-              child: TextField(
-                controller: _nameController,
-                style: GoogleFonts.plusJakartaSans(
-                  color: titleColor,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'e.g. Upper Body, Push, Anterior',
-                  hintStyle: GoogleFonts.plusJakartaSans(
-                    color: isDark ? const Color(0xFF475569) : const Color(0xFF94A3B8),
-                    fontSize: 12,
+            // Group Name & Short Name Row
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'GROUP NAME',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: subColor,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: inputBg,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: TextField(
+                          controller: _nameController,
+                          style: GoogleFonts.plusJakartaSans(
+                            color: titleColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'e.g. Push, Upper Body',
+                            hintStyle: GoogleFonts.plusJakartaSans(
+                              color: isDark ? const Color(0xFF475569) : const Color(0xFF94A3B8),
+                              fontSize: 12,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            border: InputBorder.none,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  border: InputBorder.none,
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'SHORT NAME',
+                        style: GoogleFonts.plusJakartaSans(
+                          color: subColor,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: inputBg,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: borderColor),
+                        ),
+                        child: TextField(
+                          controller: _shortNameController,
+                          maxLength: 8,
+                          textCapitalization: TextCapitalization.characters,
+                          style: GoogleFonts.plusJakartaSans(
+                            color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                          decoration: InputDecoration(
+                            counterText: '',
+                            hintText: 'e.g. PUSH',
+                            hintStyle: GoogleFonts.plusJakartaSans(
+                              color: isDark ? const Color(0xFF475569) : const Color(0xFF94A3B8),
+                              fontSize: 12,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            border: InputBorder.none,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 14),
 
@@ -228,10 +289,24 @@ class _AddSplitDialogState extends State<AddSplitDialog> {
                 ElevatedButton(
                   onPressed: () {
                     final name = _nameController.text.trim();
-                    if (name.isEmpty) return;
+                    if (name.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter a split name.')),
+                      );
+                      return;
+                    }
+
+                    String shortName = _shortNameController.text.trim().toUpperCase();
+                    if (shortName.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter a short name (2 to 8 characters).')),
+                      );
+                      return;
+                    }
 
                     workoutProvider.addSplitGroup(
                       name: name,
+                      shortName: shortName,
                       desc: _descController.text.trim(),
                       days: _selectedDays,
                     );
@@ -239,7 +314,7 @@ class _AddSplitDialogState extends State<AddSplitDialog> {
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Created split $name'),
+                        content: Text('Created split "$name [$shortName]" successfully!'),
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),

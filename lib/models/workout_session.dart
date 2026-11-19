@@ -5,12 +5,14 @@ class WorkoutSession {
   List<Exercise> exercises;
   String? splitId;
   String? splitName;
+  String? splitShortName;
 
   WorkoutSession({
     required this.date,
     required this.exercises,
     this.splitId,
     this.splitName,
+    this.splitShortName,
   });
 
   double get totalVolume {
@@ -49,6 +51,7 @@ class WorkoutSession {
       'exercises': exercises.map((e) => e.toMap()).toList(),
       if (splitId != null) 'splitId': splitId,
       if (splitName != null) 'splitName': splitName,
+      if (splitShortName != null) 'splitShortName': splitShortName,
     };
   }
 
@@ -58,6 +61,7 @@ class WorkoutSession {
       date: map['date'] as String? ?? '',
       splitId: map['splitId'] as String?,
       splitName: map['splitName'] as String?,
+      splitShortName: map['splitShortName'] as String?,
       exercises: rawExercises
           .map((e) => Exercise.fromMap(Map<String, dynamic>.from(e)))
           .toList(),
@@ -69,12 +73,14 @@ class WorkoutSession {
     List<Exercise>? exercises,
     String? splitId,
     String? splitName,
+    String? splitShortName,
   }) {
     return WorkoutSession(
       date: date ?? this.date,
       exercises: exercises ?? this.exercises.map((e) => e.copyWith()).toList(),
       splitId: splitId ?? this.splitId,
       splitName: splitName ?? this.splitName,
+      splitShortName: splitShortName ?? this.splitShortName,
     );
   }
 }
