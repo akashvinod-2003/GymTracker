@@ -474,6 +474,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
     );
 
     if (shouldFinish != true) return;
+    if (!mounted) return;
 
     setState(() {
       _isSaving = true;
@@ -1871,7 +1872,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                                               }
                                             },
                                             child: Text(
-                                              '${setItem.weight.toStringAsFixed(setItem.weight % 1 == 0 ? 0 : 1)}',
+                                              setItem.weight.toStringAsFixed(setItem.weight % 1 == 0 ? 0 : 1),
                                               style: GoogleFonts.plusJakartaSans(
                                                 color: titleColor,
                                                 fontSize: 12.5,
@@ -2069,6 +2070,7 @@ class _TodaysWorkoutFlowScreenState extends State<TodaysWorkoutFlowScreen> {
                     ),
                   );
                   if (discard == true) {
+                    if (!mounted) return;
                     final wp = Provider.of<WorkoutProvider>(context, listen: false);
                     await wp.discardActiveWorkout();
                     if (mounted) Navigator.pop(context);
