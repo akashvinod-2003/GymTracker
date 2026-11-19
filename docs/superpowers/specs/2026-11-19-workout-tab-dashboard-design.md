@@ -23,13 +23,16 @@ current-workout UI into a new Workout tab. Turn Home into a progress dashboard.
 2. Today's split card: split name, "x/y sets done" bar, **Go to workout** (switches tab).
 3. Two tiles: streak (current vs best) and body weight (latest plus change since start).
    They stack vertically below about 340px of content width.
-4. 7-day volume strip: 7 calendar days ending at `currentDate`, read from sessions
-   already in memory (local cache). No extra fetch.
-5. Muscle-group breakdown (`CategoryPillsRow`).
+4. 7-day volume strip: 7 calendar days ending at `currentDate`
+   (`lastSevenCalendarDayVolumes`), not the last 7 session keys.
+5. Muscle-group breakdown (`CategoryPillsRow`; in studio it is inside the hero card).
 
-Body weight loads lazily. Until `isAnalyticsLoaded`, the tile shows "Tap to load".
-Tapping it calls `loadAnalyticsData()`, which also runs when Analytics is opened.
-Nothing new is fetched at startup.
+The 7-day strip and body weight both load lazily. Until `isAnalyticsLoaded`, each one
+shows a tap-to-load control that calls `loadAnalyticsData()`, which also runs when
+Analytics is opened. Nothing new is fetched at startup.
+
+The Analytics session tap now opens the Workout tab, which shows that day's exercises.
+Studio date controls show on both Today and Workout.
 
 ## Done
 The banner is gone and the Workout tab can resume a draft. Neither pack overflows at
