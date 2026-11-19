@@ -154,7 +154,6 @@ class WorkoutTab extends StatelessWidget {
                 sliver: SliverToBoxAdapter(
                   child: _EmptyState(
                     onStart: () => _openQuickEntry(context),
-                    onGuided: () => TodaysWorkoutFlowScreen.start(context),
                   ),
                 ),
               )
@@ -272,8 +271,7 @@ class _AddButton extends StatelessWidget {
 
 class _EmptyState extends StatelessWidget {
   final VoidCallback onStart;
-  final VoidCallback onGuided;
-  const _EmptyState({required this.onStart, required this.onGuided});
+  const _EmptyState({required this.onStart});
 
   @override
   Widget build(BuildContext context) {
@@ -293,20 +291,11 @@ class _EmptyState extends StatelessWidget {
           Text('Nothing logged yet', style: t.titleMedium),
           const SizedBox(height: 6),
           Text(
-            'Start today\'s workout with the guided flow or add exercises directly.',
+            'Start the guided workout above, or add exercises directly.',
             textAlign: TextAlign.center,
             style: t.bodyMedium,
           ),
           const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: onGuided,
-              icon: const Icon(Icons.play_circle_fill_rounded),
-              label: const Text('Start Guided Workout'),
-            ),
-          ),
-          const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(

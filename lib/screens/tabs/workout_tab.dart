@@ -359,41 +359,12 @@ class WorkoutTab extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Tap the orange plus button below or quick setup to start tracking your sets today.',
+                        'Start the guided workout above, or tap the orange + to add an exercise.',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.plusJakartaSans(
                           color: subColor,
                           fontSize: 12,
                         ),
-                      ),
-                      const SizedBox(height: 18),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        alignment: WrapAlignment.center,
-                        children: [
-                          ElevatedButton.icon(
-                            onPressed: () => TodaysWorkoutFlowScreen.start(context),
-                            icon: const Icon(Icons.play_circle_fill_rounded, size: 17),
-                            label: const Text('Start Guided Workout'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                              foregroundColor: isDark ? Colors.black : Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                              elevation: 2,
-                            ),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: () => _openQuickEntry(context),
-                            icon: const Icon(Icons.bolt_rounded, size: 16),
-                            label: const Text('Quick Setup'),
-                            style: OutlinedButton.styleFrom(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
