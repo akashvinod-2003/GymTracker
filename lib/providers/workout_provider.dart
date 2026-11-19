@@ -884,6 +884,20 @@ class WorkoutProvider extends ChangeNotifier {
     }).toList();
   }
 
+  /// Volume for each of the 7 calendar days ending at [currentDate], oldest
+  /// first. Days with no session in memory report 0.
+  List<MapEntry<DateTime, double>> get lastSevenCalendarDayVolumes {
+    final end = DateTime(_currentDate.year, _currentDate.month, _currentDate.day);
+    final fmt = DateFormat('yyyy-MM-dd');
+    return [
+      for (var i = 6; i >= 0; i--)
+        () {
+          final day = end.subtract(Duration(days: i));
+          return MapEntry(day, _sessions[fmt.format(day)]?.totalVolume ?? 0.0);
+        }(),
+    ];
+  }
+
   // ----------------------------------------------------
   // BODY WEIGHT LOGGING & METRICS (On-demand check-ins)
   // ----------------------------------------------------

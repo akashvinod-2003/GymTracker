@@ -82,7 +82,8 @@ class HeroVolumeCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     // Daily Volume Tag & Pulsing Dot
-                    Row(
+                    Flexible(
+                      child: Row(
                       children: [
                         Container(
                           width: 8,
@@ -100,8 +101,11 @@ class HeroVolumeCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(
+                        Flexible(
+                          child: Text(
                           'DAILY LIFTED VOLUME',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.plusJakartaSans(
                             color: const Color(0xFFBFDBFE),
                             fontSize: 10.5,
@@ -109,8 +113,11 @@ class HeroVolumeCard extends StatelessWidget {
                             letterSpacing: 1.0,
                           ),
                         ),
+                        ),
                       ],
                     ),
+                    ),
+                    const SizedBox(width: 8),
 
                     // Actions & Streak Badge
                     Row(

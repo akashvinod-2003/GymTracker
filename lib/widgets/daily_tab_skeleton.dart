@@ -96,11 +96,11 @@ class _DailyTabSkeletonState extends State<DailyTabSkeleton>
                           bone(width: 160, height: 32, radius: 8),
                           Row(
                             children: [
-                              bone(width: 90, height: 14, radius: 6),
+                              Flexible(child: bone(width: 90, height: 14, radius: 6)),
                               const SizedBox(width: 16),
-                              bone(width: 90, height: 14, radius: 6),
+                              Flexible(child: bone(width: 90, height: 14, radius: 6)),
                               const SizedBox(width: 16),
-                              bone(width: 90, height: 14, radius: 6),
+                              Flexible(child: bone(width: 90, height: 14, radius: 6)),
                             ],
                           ),
                         ],
