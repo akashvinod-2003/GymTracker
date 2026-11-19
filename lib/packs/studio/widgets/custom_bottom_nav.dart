@@ -18,6 +18,7 @@ class CustomBottomNav extends StatelessWidget {
 
   static const _items = [
     (Icons.today_outlined, Icons.today_rounded, 'Today'),
+    (Icons.fitness_center_outlined, Icons.fitness_center_rounded, 'Workout'),
     (Icons.grid_view_outlined, Icons.grid_view_rounded, 'Splits'),
     (Icons.insights_outlined, Icons.insights_rounded, 'Progress'),
   ];

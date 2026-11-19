@@ -11,6 +11,7 @@ import 'profile_drawer.dart';
 import 'tabs/analytics_tab.dart';
 import 'tabs/daily_tab.dart';
 import 'tabs/splits_tab.dart';
+import 'tabs/workout_tab.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,11 +25,11 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _hasLoadedAnalytics = false;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  static const _titles = ['Today', 'Splits', 'Progress'];
+  static const _titles = ['Today', 'Workout', 'Splits', 'Progress'];
 
   void _select(int index) {
     if (index == _tab) return;
-    if (index == 2 && !_hasLoadedAnalytics) {
+    if (index == 3 && !_hasLoadedAnalytics) {
       _hasLoadedAnalytics = true;
     }
     Haptics.select();
@@ -59,10 +60,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final isToday =
         DateFormat('yyyy-MM-dd').format(wp.currentDate) == StreakService.todayKeyIST;
-    final title = _tab == 0 && !isToday
+    final datedTab = _tab == 0 || _tab == 1;
+    final title = datedTab && !isToday
         ? DateFormat('EEE, MMM d').format(wp.currentDate)
         : _titles[_tab];
-    final eyebrow = _tab == 0
+    final eyebrow = datedTab
         ? (isToday
             ? DateFormat('EEEE, MMM d').format(wp.currentDate).toUpperCase()
             : 'PAST SESSION')
@@ -84,7 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: title,
                   eyebrow: eyebrow,
                   onMenu: () => _scaffoldKey.currentState?.openDrawer(),
-                  trailing: _tab == 0
+                  trailing: datedTab
                       ? _DateControls(
                           onPrev: () => _shiftDay(-1),
                           onPick: _pickDate,
@@ -98,10 +100,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: IndexedStack(
                     index: _tab,
                     children: [
-                      DailyTab(onNavigateToSplits: () => _select(1)),
+                      DailyTab(
+                        onNavigateToSplits: () => _select(2),
+                        onNavigateToWorkout: () => _select(1),
+                      ),
+                      const WorkoutTab(),
                       const SplitsTab(),
                       _hasLoadedAnalytics
-                          ? AnalyticsTab(onSelectSession: () => _select(0))
+                          ? AnalyticsTab(onSelectSession: () => _select(1))
                           : const SizedBox.shrink(),
                     ],
                   ),

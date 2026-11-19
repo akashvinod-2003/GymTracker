@@ -1,385 +1,347 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:gym_tracker/providers/workout_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/motion.dart';
-import '../../widgets/exercise_card.dart';
 import '../../widgets/hero_volume_card.dart';
-import '../../widgets/quick_entry_sheet.dart';
-import 'package:gym_tracker/models/split_group.dart';
-import 'package:gym_tracker/screens/todays_workout_flow_screen.dart';
-import 'package:gym_tracker/widgets/last_workout_sheet.dart';
 import 'package:gym_tracker/widgets/daily_tab_skeleton.dart';
 
-/// Today: one job — log the sets in front of you, one-handed, between lifts.
+/// Today: a glance at the day's progress. Logging lives in the Workout tab.
 class DailyTab extends StatelessWidget {
   final VoidCallback onNavigateToSplits;
+  final VoidCallback onNavigateToWorkout;
 
-  const DailyTab({super.key, required this.onNavigateToSplits});
-
-  void _openQuickEntry(BuildContext context) {
-    Haptics.commit();
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      showDragHandle: false,
-      builder: (ctx) => const QuickEntrySheet(),
-    );
-  }
-
-  void _finish(BuildContext context, WorkoutProvider wp) {
-    Haptics.success();
-    final s = wp.currentSession;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(
-        content: Text(
-          'Workout saved · ${s.completedSets} sets · '
-          '${wp.currentStreak} day streak',
-        ),
-      ));
-  }
+  const DailyTab({
+    super.key,
+    required this.onNavigateToSplits,
+    required this.onNavigateToWorkout,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final p = Pal.of(context);
-    final t = Theme.of(context).textTheme;
     final wp = context.watch<WorkoutProvider>();
     final session = wp.currentSession;
     final exercises = session.exercises;
-    final muscles = wp.muscleSetCountsForCurrentSession;
-    final muscleOrder = muscles.keys.toList();
     final bottomInset = MediaQuery.paddingOf(context).bottom;
-    final activeSplit = session.splitId != null
-        ? wp.splitGroups.firstWhere(
-            (g) => g.id == session.splitId,
-            orElse: () => wp.getSplitForDate(wp.currentDate) ?? (wp.splitGroups.isNotEmpty ? wp.splitGroups.first : SplitGroup.defaultGroups.first),
-          )
-        : (wp.getSplitForDate(wp.currentDate) ?? (wp.splitGroups.isNotEmpty ? wp.splitGroups.first : null));
 
     if (wp.isLoading && exercises.isEmpty) {
       return const DailyTabSkeleton();
     }
 
-    return Stack(
+    final streak = _StatTile(
+      icon: Icons.local_fire_department_rounded,
+      label: 'Streak',
+      value: '${wp.currentStreak} d',
+      caption: 'Best ${wp.bestStreak} d',
+    );
+    final weight = _weightTile(wp);
+
+    return ListView(
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
+      padding: EdgeInsets.fromLTRB(16, 4, 16, 104 + bottomInset),
       children: [
-        CustomScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          slivers: [
-            if (wp.hasActiveWorkoutDraft)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                sliver: SliverToBoxAdapter(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          p.accent.withValues(alpha: 0.15),
-                          p.surface,
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: p.accent,
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: p.accent.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.play_arrow_rounded,
-                            color: p.accent,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'ACTIVE WORKOUT IN PROGRESS',
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: p.accent,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                              Text(
-                                wp.activeWorkoutDraft?.splitName ?? 'In-Gym Session',
-                                style: GoogleFonts.plusJakartaSans(
-                                  color: p.text,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: () => TodaysWorkoutFlowScreen.start(context),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: p.accent,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          child: Text(
-                            'Resume',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+        HeroVolumeCard(
+          volume: session.totalVolume,
+          exercisesCount: exercises.length,
+          totalSets: session.totalSets,
+          completedSets: session.completedSets,
+          currentStreak: wp.currentStreak,
+          muscleSetCounts: wp.muscleSetCountsForCurrentSession,
+          onManageSplits: onNavigateToSplits,
+        ),
+        const SizedBox(height: 16),
+        _TodaySplitCard(
+          splitName: wp.getSplitNameForDate(wp.currentDate, session: session),
+          completedSets: session.completedSets,
+          totalSets: session.totalSets,
+          inProgress: wp.hasActiveWorkoutDraft,
+          onOpen: () {
+            Haptics.select();
+            onNavigateToWorkout();
+          },
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, c) {
+            if (c.maxWidth < 340) {
+              return Column(children: [streak, const SizedBox(height: 12), weight]);
+            }
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: streak),
+                  const SizedBox(width: 12),
+                  Expanded(child: weight),
+                ],
               ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-              sliver: SliverToBoxAdapter(
-                child: HeroVolumeCard(
-                  volume: session.totalVolume,
-                  exercisesCount: exercises.length,
-                  totalSets: session.totalSets,
-                  completedSets: session.completedSets,
-                  currentStreak: wp.currentStreak,
-                  muscleSetCounts: muscles,
-                  onManageSplits: onNavigateToSplits,
-                ),
-              ),
-            ),
-            if (exercises.isNotEmpty)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 10),
-                sliver: SliverToBoxAdapter(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text('Exercises', style: t.titleLarge),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${exercises.length}',
-                        style: t.titleLarge?.copyWith(
-                          color: p.text3,
-                          fontFeatures: tabularFigures,
-                        ),
-                      ),
-                      if (activeSplit != null) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: p.surface,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: p.separator),
-                          ),
-                          child: Text(
-                            activeSplit.effectiveShortName,
-                            style: GoogleFonts.plusJakartaSans(
-                              color: p.accent,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ],
-                      const Spacer(),
-                      if (activeSplit != null) ...[
-                        TextButton.icon(
-                          onPressed: () => LastWorkoutSheet.show(context, activeSplit),
-                          icon: const Icon(Icons.history_rounded, size: 16),
-                          label: const Text('Last Workout'),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      _AddButton(onTap: () => _openQuickEntry(context)),
-                    ],
-                  ),
-                ),
-              ),
-            if (exercises.isEmpty)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                sliver: SliverToBoxAdapter(
-                  child: _EmptyState(
-                    onStart: () => _openQuickEntry(context),
-                    onGuided: () => TodaysWorkoutFlowScreen.start(context),
-                  ),
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                sliver: SliverLayoutBuilder(
-                  builder: (context, c) {
-                    final wide = c.crossAxisExtent >= 720;
-                    Widget card(int i) => ExerciseCard(
-                          key: ValueKey(exercises[i].id),
-                          exercise: exercises[i],
-                          index: i,
-                          plateIndex: muscleOrder.indexOf(exercises[i].part),
-                        );
-                    if (wide) {
-                      // Two columns that size to content, so long set lists
-                      // never clip the way a fixed-aspect grid does.
-                      final left = [for (var i = 0; i < exercises.length; i += 2) i];
-                      final right = [for (var i = 1; i < exercises.length; i += 2) i];
-                      Widget col(List<int> idx) => Column(
-                            children: [
-                              for (final i in idx)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 12),
-                                  child: card(i),
-                                ),
-                            ],
-                          );
-                      return SliverToBoxAdapter(
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: col(left)),
-                            const SizedBox(width: 12),
-                            Expanded(child: col(right)),
-                          ],
-                        ),
-                      );
-                    }
-                    return SliverList.separated(
-                      itemCount: exercises.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (_, i) => card(i),
-                    );
-                  },
-                ),
-              ),
-            if (exercises.isNotEmpty)
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                sliver: SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // The next exercise is added where the last one ended,
-                      // low on screen within thumb reach.
-                      FilledButton.icon(
-                        onPressed: () => _openQuickEntry(context),
-                        icon: const Icon(Icons.add_rounded),
-                        label: const Text('Add Exercise'),
-                      ),
-                      const SizedBox(height: 10),
-                      OutlinedButton.icon(
-                        onPressed: session.completedSets == 0
-                            ? null
-                            : () => _finish(context, wp),
-                        icon: const Icon(Icons.flag_rounded, size: 20),
-                        label: const Text('Finish Workout'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            // Room for the floating tab bar.
-            SliverToBoxAdapter(child: SizedBox(height: 104 + bottomInset)),
-          ],
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _WeekVolumeStrip(
+          loaded: wp.isAnalyticsLoaded,
+          loading: wp.isLoadingAnalytics,
+          days: wp.lastSevenCalendarDayVolumes,
+          onLoad: wp.loadAnalyticsData,
         ),
       ],
     );
   }
+
+  Widget _weightTile(WorkoutProvider wp) {
+    if (!wp.isAnalyticsLoaded) {
+      return _StatTile(
+        icon: Icons.monitor_weight_outlined,
+        label: 'Body weight',
+        value: wp.isLoadingAnalytics ? '…' : '—',
+        caption: wp.isLoadingAnalytics ? 'Loading' : 'Tap to load',
+        onTap: wp.isLoadingAnalytics ? null : wp.loadAnalyticsData,
+      );
+    }
+    final current = wp.currentWeightKg;
+    final change = wp.totalWeightChangeKg;
+    return _StatTile(
+      icon: Icons.monitor_weight_outlined,
+      label: 'Body weight',
+      value: current == null ? '—' : '${current.toStringAsFixed(1)} kg',
+      caption: change == null
+          ? (current == null ? 'No check-ins yet' : 'First check-in')
+          : '${change >= 0 ? '+' : ''}${change.toStringAsFixed(1)} kg since start',
+    );
+  }
 }
 
-class _AddButton extends StatelessWidget {
-  final VoidCallback onTap;
-  const _AddButton({required this.onTap});
+BoxDecoration _cardDecoration(Pal p) => BoxDecoration(
+      color: p.surface,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: p.separator),
+    );
+
+class _TodaySplitCard extends StatelessWidget {
+  final String splitName;
+  final int completedSets;
+  final int totalSets;
+  final bool inProgress;
+  final VoidCallback onOpen;
+
+  const _TodaySplitCard({
+    required this.splitName,
+    required this.completedSets,
+    required this.totalSets,
+    required this.inProgress,
+    required this.onOpen,
+  });
 
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
     final t = Theme.of(context).textTheme;
-    // Compact tonal button for the section header; the filled one sits below.
-    return Pressable(
-      onTap: onTap,
-      semanticLabel: 'Add Exercise',
-      child: Container(
-        height: 44,
-        padding: const EdgeInsets.symmetric(horizontal: 14),
-        decoration: BoxDecoration(
-          color: p.accentTint,
-          borderRadius: BorderRadius.circular(22),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.add_rounded, color: p.accent, size: 20),
-            const SizedBox(width: 4),
-            Text('Add', style: t.labelLarge?.copyWith(color: p.accent)),
-          ],
-        ),
+    final progress = totalSets == 0 ? 0.0 : completedSets / totalSets;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(p),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            inProgress ? "Today's split · in progress" : "Today's split",
+            style: t.labelMedium?.copyWith(color: p.text3),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            splitName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: t.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: p.accentTint,
+              valueColor: AlwaysStoppedAnimation(p.accent),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            totalSets == 0 ? 'No sets planned yet' : '$completedSets/$totalSets sets done',
+            style: t.bodySmall?.copyWith(
+              color: p.text2,
+              fontFeatures: tabularFigures,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: onOpen,
+              icon: Icon(inProgress ? Icons.play_arrow_rounded : Icons.arrow_forward_rounded),
+              label: Text(inProgress ? 'Resume workout' : 'Go to workout'),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _EmptyState extends StatelessWidget {
-  final VoidCallback onStart;
-  final VoidCallback onGuided;
-  const _EmptyState({required this.onStart, required this.onGuided});
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final String caption;
+  final VoidCallback? onTap;
+
+  const _StatTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.caption,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final p = Pal.of(context);
     final t = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
-      decoration: BoxDecoration(
-        color: p.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: p.separator),
-      ),
+    final tile = Container(
+      padding: const EdgeInsets.all(14),
+      decoration: _cardDecoration(p),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.fitness_center_rounded, size: 40, color: p.text3),
-          const SizedBox(height: 14),
-          Text('Nothing logged yet', style: t.titleMedium),
-          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(icon, size: 16, color: p.accent),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: t.labelMedium?.copyWith(color: p.text3),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
           Text(
-            'Start today\'s workout with the guided flow or add exercises directly.',
-            textAlign: TextAlign.center,
-            style: t.bodyMedium,
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: t.titleLarge?.copyWith(fontFeatures: tabularFigures),
           ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: onGuided,
-              icon: const Icon(Icons.play_circle_fill_rounded),
-              label: const Text('Start Guided Workout'),
+          const SizedBox(height: 2),
+          Text(
+            caption,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: t.bodySmall?.copyWith(color: p.text2),
+          ),
+        ],
+      ),
+    );
+    if (onTap == null) return tile;
+    return Pressable(onTap: onTap!, semanticLabel: '$label: $caption', child: tile);
+  }
+}
+
+class _WeekVolumeStrip extends StatelessWidget {
+  final bool loaded;
+  final bool loading;
+  final List<MapEntry<DateTime, double>> days;
+  final Future<void> Function() onLoad;
+
+  const _WeekVolumeStrip({
+    required this.loaded,
+    required this.loading,
+    required this.days,
+    required this.onLoad,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = Pal.of(context);
+    final t = Theme.of(context).textTheme;
+    final maxVol = days.fold<double>(0, (m, e) => e.value > m ? e.value : m);
+    final total = days.fold<double>(0, (s, e) => s + e.value);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _cardDecoration(p),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text('Last 7 days', style: t.labelMedium?.copyWith(color: p.text3)),
+              ),
+              if (loaded)
+                Text(
+                  '${NumberFormat.compact().format(total)} kg',
+                  style: t.labelLarge?.copyWith(fontFeatures: tabularFigures),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (!loaded)
+            Center(
+              child: TextButton.icon(
+                onPressed: loading ? null : onLoad,
+                icon: loading
+                    ? SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: p.accent),
+                      )
+                    : const Icon(Icons.bar_chart_rounded, size: 18),
+                label: Text(loading ? 'Loading history' : 'Load weekly volume'),
+              ),
+            )
+          else
+            SizedBox(
+              height: 92,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (var i = 0; i < days.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 6),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: FractionallySizedBox(
+                                heightFactor: maxVol == 0 ? 0.04 : (days[i].value / maxVol).clamp(0.04, 1.0),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: i == days.length - 1 ? p.accent : p.accent.withValues(alpha: 0.35),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            DateFormat('E').format(days[i].key).substring(0, 1),
+                            style: t.labelSmall?.copyWith(color: p.text3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: onStart,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Add Exercise'),
-            ),
-          ),
         ],
       ),
     );
