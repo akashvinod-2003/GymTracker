@@ -147,7 +147,7 @@ class SplitsTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '3-tier training catalog: Split Group &rarr; Body Part &rarr; Specific Exercise Movements.',
+                  '3-tier training catalog: Split Group → Body Part → Specific Exercise Movements.',
                   style: GoogleFonts.plusJakartaSans(
                     color: subColor,
                     fontSize: 12,
@@ -313,9 +313,11 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
   String? _expandedPart;
 
   void _showEditAbbreviationDialog(BuildContext context, WorkoutProvider provider, bool isDark) {
-    final controller = TextEditingController(
-      text: widget.group.shortName.isNotEmpty ? widget.group.shortName : widget.group.effectiveShortName,
-    );
+    final initialText = (widget.group.shortName.trim().toUpperCase() == 'UPP' ||
+            (widget.group.name.toLowerCase().contains('upper') && widget.group.shortName.trim().toUpperCase() == 'UPP'))
+        ? 'UP'
+        : (widget.group.shortName.isNotEmpty ? widget.group.shortName : widget.group.effectiveShortName);
+    final controller = TextEditingController(text: initialText);
 
     showDialog(
       context: context,
@@ -564,7 +566,7 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
               if (newName.isEmpty) return;
               String shortN = shortNameController.text.trim().toUpperCase();
               if (shortN.isEmpty) {
-                shortN = newName.length <= 6 ? newName.toUpperCase() : newName.substring(0, 5).toUpperCase();
+                shortN = widget.group.effectiveShortName;
               }
               Navigator.pop(ctx);
               final duplicated = await provider.duplicateSplitAbove(widget.group.id, customName: newName);
@@ -620,6 +622,7 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
         children: [
           // Header
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Tooltip(
                 message: 'Tap to edit abbreviation',
@@ -627,8 +630,8 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                   onTap: () => _showEditAbbreviationDialog(context, workoutProvider, isDark),
                   borderRadius: BorderRadius.circular(14),
                   child: Container(
-                    width: 46,
-                    height: 40,
+                    width: 44,
+                    height: 44,
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       color: pastel.bg(isDark),
@@ -642,7 +645,7 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.plusJakartaSans(
                         color: pastel.text(isDark),
-                        fontSize: 11,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -654,19 +657,19 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 6,
+                      runSpacing: 4,
                       children: [
-                        Flexible(
-                          child: Text(
-                            widget.group.name,
-                            style: GoogleFonts.plusJakartaSans(
-                              color: titleColor,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w800,
-                            ),
+                        Text(
+                          widget.group.name,
+                          style: GoogleFonts.plusJakartaSans(
+                            color: titleColor,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                        const SizedBox(width: 6),
                         Tooltip(
                           message: 'Tap to edit abbreviation',
                           child: InkWell(
@@ -705,11 +708,12 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 3),
                     Text(
                       '${parts.length} body parts configured',
                       style: GoogleFonts.plusJakartaSans(
                         color: subColor,
-                        fontSize: 11,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -722,41 +726,15 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                   // Add Split Above (Duplicate Split)
                   Tooltip(
                     message: 'Add Split Above',
-                    child: InkWell(
-                      onTap: () => _promptDuplicateAbove(context, workoutProvider, isDark),
-                      borderRadius: BorderRadius.circular(10),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF0F3635) : AppTheme.tealBg,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(
-                            color: isDark ? const Color(0xFF134E4A) : const Color(0xFF99F6E4),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.arrow_upward_rounded,
-                              size: 14,
-                              color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Add Above',
-                              style: GoogleFonts.plusJakartaSans(
-                                color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_upward_rounded, size: 19),
+                      color: isDark ? AppTheme.tealLight : AppTheme.tealPrimary,
+                      onPressed: () => _promptDuplicateAbove(context, workoutProvider, isDark),
+                      padding: const EdgeInsets.all(5),
+                      constraints: const BoxConstraints(),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 2),
                   // Edit Split
                   Tooltip(
                     message: 'Edit Split',
@@ -769,11 +747,11 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                           builder: (ctx) => EditSplitDialog(splitGroup: widget.group),
                         );
                       },
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(5),
                       constraints: const BoxConstraints(),
                     ),
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 2),
                   // Delete Split
                   Tooltip(
                     message: 'Delete Split',
@@ -817,7 +795,7 @@ class _SplitGroupCardState extends State<_SplitGroupCard> {
                           ),
                         );
                       },
-                      padding: const EdgeInsets.all(4),
+                      padding: const EdgeInsets.all(5),
                       constraints: const BoxConstraints(),
                     ),
                   ),
